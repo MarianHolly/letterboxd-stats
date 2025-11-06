@@ -1,18 +1,18 @@
 services:
 
-  database:
+  db:
     image: postgres:15-alpine
     container_name: letterboxd_stats_database
     environment:
-      POSTGRES_USER: letterboxd_user
-      POSTGRES_PASSWORD: secure_password
-      POSTGRES_DB: letterboxd_db
+      POSTGRES_USER: letterboxduser
+      POSTGRES_PASSWORD: securepassword
+      POSTGRES_DB: letterboxddb
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - "postgres_data:/var/lib/postgresql/data"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U todouser -d tododb"]
+      test: ["CMD-SHELL", "pg_isready -U letterboxduser -d letterboxddb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,15 +22,21 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: letterboxd_stats_backend
+    environment:
+      DATABASE_URL: postgresql://letterboxduser:securepassword@db:5432/letterboxddb
+      SECRET_KEY: super-secretkey-in-production
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    command: uvicorn app.main:app --hosted 0.0.0.0 --post 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --post 8000 --reload
 
   frontend:
     build:
-      content: ./frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: letterboxd_stats_frontend
     ports:
@@ -40,3 +46,6 @@ services:
       - /app/node_modules
       - /app/.next
     command: npm run dev
+
+volumes:
+  postgres_data:
