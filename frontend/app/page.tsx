@@ -139,13 +139,6 @@ export default function Home() {
                       </p>
                     </div>
                   )}
-
-                  <div className="bg-green-50 px-4 py-2 rounded-lg">
-                    <p className="text-sm text-gray-600">TMDB Rating</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {movie.tmdb_rating.toFixed(1)}
-                    </p>
-                  </div>
                 </div>
 
                 <div>
