@@ -64,37 +64,108 @@ export default function Home() {
         <h1 className="text-4xl font-bold text-white mb-8 text-center">
           Letterboxd Quick Stats
         </h1>
-      </div>
 
-      <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
-        <h2 className="text-2xl font-semibold mb-4">Upload Your Diary</h2>
+        {/* Upload Section */}
+        <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Upload Your Diary</h2>
 
-        <div className="space-y-4">
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500
+          <div className="space-y-4">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-full file:border-0
                 file:text-sm file:font-semibold
                 file:bg-blue-50 file:text-blue-700
                 hover:file:bg-blue-100"
-          />
+            />
 
-          <button
-            onClick={handleUpload}
-            disabled={!file || loading}
-            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg
+            <button
+              onClick={handleUpload}
+              disabled={!file || loading}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg
                 font-semibold hover:bg-blue-700 disabled:bg-gray-400
                 disabled:cursor-not-allowed transition"
-          >
-            {loading ? "Processing..." : "Upload & Analyze"}
-          </button>
+            >
+              {loading ? "Processing..." : "Upload & Analyze"}
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
         </div>
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600">{error}</p>
+
+        {/* Results Section */}
+        {movie && (
+          <div className="bg-white rounded-lg shadow-xl p-8">
+            <h2 className="text-2xl font-semibold mb-6">
+              Most Recent Movie Watched
+            </h2>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Poster */}
+              <div>
+                {movie.poster ? (
+                  <img
+                    src={movie.poster}
+                    alt={movie.title}
+                    className="w-full rounded-lg shadow-lg"
+                  />
+                ) : (
+                  <div className="w-full aspect-[2/3] bg-gray-200 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-400">No poster available</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Details */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-3xl font-bold">{movie.title}</h3>
+                  <p className="text-gray-600 text-lg">{movie.year}</p>
+                </div>
+
+                <div className="flex gap-4">
+                  {movie.rating && (
+                    <div className="bg-blue-50 px-4 py-2 rounded-lg">
+                      <p className="text-sm text-gray-600">Your Rating</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {movie.rating}★
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-green-50 px-4 py-2 rounded-lg">
+                    <p className="text-sm text-gray-600">TMDB Rating</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {movie.tmdb_rating.toFixed(1)}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Watched on</p>
+                  <p className="text-lg font-semibold">{movie.watched_date}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">Overview</p>
+                  <p className="text-gray-700 leading-relaxed">
+                    {movie.overview}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Release Date</p>
+                  <p className="text-lg">{movie.release_date}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
