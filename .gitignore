@@ -9,3 +9,4 @@ node_modules
 __pycache__
 .env.local
 .docs
+.github
