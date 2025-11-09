@@ -4,14 +4,15 @@ import { useState } from "react";
 
 interface MovieData {
   title: string;
-  year: number;
+  year: number | null;
   watched_date: string;
   rating: number | null;
-  tmdb_title: string;
+  tmdb_title: string | null;
   poster: string | null;
-  overview: string;
-  tmdb_rating: number;
-  release_date: string;
+  overview: string | null;
+  tmdb_rating: number | null;
+  release_date: string | null;
+  error?: string;
 }
 
 export default function Home() {
@@ -45,14 +46,22 @@ export default function Home() {
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
+        setError(data.error || `Error: ${response.statusText}`);
+        return;
       }
 
-      const data: MovieData = await response.json();
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+
       setMovie(data);
     } catch (err: any) {
-      setError(err.message || "An unknown error occurred.");
+      setError(err.message || "Failed to upload file. Please check if the backend is running.");
+      console.error("Upload error:", err);
     } finally {
       setLoading(false);
     }
@@ -127,7 +136,7 @@ export default function Home() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-3xl font-bold">{movie.title}</h3>
-                  <p className="text-gray-600 text-lg">{movie.year}</p>
+                  {movie.year && <p className="text-gray-600 text-lg">{movie.year}</p>}
                 </div>
 
                 <div className="flex gap-4">
@@ -139,6 +148,14 @@ export default function Home() {
                       </p>
                     </div>
                   )}
+                  {movie.tmdb_rating && (
+                    <div className="bg-amber-50 px-4 py-2 rounded-lg">
+                      <p className="text-sm text-gray-600">TMDB Rating</p>
+                      <p className="text-2xl font-bold text-amber-600">
+                        {movie.tmdb_rating.toFixed(1)}★
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -146,17 +163,21 @@ export default function Home() {
                   <p className="text-lg font-semibold">{movie.watched_date}</p>
                 </div>
 
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">Overview</p>
-                  <p className="text-gray-700 leading-relaxed">
-                    {movie.overview}
-                  </p>
-                </div>
+                {movie.overview && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Overview</p>
+                    <p className="text-gray-700 leading-relaxed">
+                      {movie.overview}
+                    </p>
+                  </div>
+                )}
 
-                <div>
-                  <p className="text-sm text-gray-600">Release Date</p>
-                  <p className="text-lg">{movie.release_date}</p>
-                </div>
+                {movie.release_date && (
+                  <div>
+                    <p className="text-sm text-gray-600">Release Date</p>
+                    <p className="text-lg">{movie.release_date}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
