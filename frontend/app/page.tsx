@@ -59,6 +59,45 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black"></div>
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold text-white mb-8 text-center">
+          Letterboxd Quick Stats
+        </h1>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Upload Your Diary</h2>
+
+        <div className="space-y-4">
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+          />
+
+          <button
+            onClick={handleUpload}
+            disabled={!file || loading}
+            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg
+                font-semibold hover:bg-blue-700 disabled:bg-gray-400
+                disabled:cursor-not-allowed transition"
+          >
+            {loading ? "Processing..." : "Upload & Analyze"}
+          </button>
+        </div>
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
