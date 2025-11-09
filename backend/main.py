@@ -1,8 +1,26 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+import pandas as pd
+import requests
+import io
 
 app = FastAPI()
 
+# CRS - allow frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+TMDB_API_KEY = ""
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Quick Letterboxt Stats API"}
+
+@app.post("/upload")
+async def upload_csv(file: UploadFile = File(...)):
+    """ Upload diary.csv and return most recent movies with TMDB data """
