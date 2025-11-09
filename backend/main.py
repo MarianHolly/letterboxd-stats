@@ -80,10 +80,17 @@ async def upload_csv(file: UploadFile = File(...)):
             "watched_date": watched_date,
             "rating": rating,
             "tmdb_title": None,
+            "tmdb_id": None,
             "poster": None,
+            "backdrop": None,
             "overview": None,
             "tmdb_rating": None,
-            "release_date": None
+            "vote_count": None,
+            "release_date": None,
+            "genres": [],
+            "runtime": None,
+            "cast": [],
+            "directors": []
         }
 
         # Search TMDB if API key is available
@@ -115,13 +122,60 @@ async def upload_csv(file: UploadFile = File(...)):
 
             # Get first result
             movie = results[0]
+            tmdb_id = movie.get('id')
+
+            # Get additional details from TMDB if we have an ID
+            genres = []
+            credits = {"cast": [], "crew": []}
+            runtime = None
+
+            if tmdb_id:
+                try:
+                    # Fetch movie details
+                    details_url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
+                    details_params = {'api_key': TMDB_API_KEY}
+                    details_response = requests.get(details_url, params=details_params, timeout=5)
+
+                    if details_response.status_code == 200:
+                        details = details_response.json()
+                        genres = [g.get('name') for g in details.get('genres', [])]
+                        runtime = details.get('runtime')
+
+                        # Fetch credits
+                        credits_url = f"https://api.themoviedb.org/3/movie/{tmdb_id}/credits"
+                        credits_response = requests.get(credits_url, params=details_params, timeout=5)
+
+                        if credits_response.status_code == 200:
+                            credits_data = credits_response.json()
+                            # Get top 5 cast members
+                            cast = credits_data.get('cast', [])[:5]
+                            credits['cast'] = [
+                                {"name": c.get('name'), "character": c.get('character')}
+                                for c in cast
+                            ]
+                            # Get director
+                            crew = credits_data.get('crew', [])
+                            directors = [c for c in crew if c.get('job') == 'Director']
+                            credits['crew'] = [
+                                {"name": c.get('name'), "job": c.get('job')}
+                                for c in directors[:3]
+                            ]
+                except requests.RequestException as e:
+                    logger.warning(f"Failed to fetch TMDB details: {str(e)}")
 
             movie_data.update({
                 "tmdb_title": movie.get('title'),
+                "tmdb_id": tmdb_id,
                 "poster": f"https://image.tmdb.org/t/p/w500{movie.get('poster_path')}" if movie.get('poster_path') else None,
+                "backdrop": f"https://image.tmdb.org/t/p/w1280{movie.get('backdrop_path')}" if movie.get('backdrop_path') else None,
                 "overview": movie.get('overview'),
                 "tmdb_rating": movie.get('vote_average'),
-                "release_date": movie.get('release_date')
+                "vote_count": movie.get('vote_count'),
+                "release_date": movie.get('release_date'),
+                "genres": genres,
+                "runtime": runtime,
+                "cast": credits.get('cast', []),
+                "directors": credits.get('crew', [])
             })
 
             logger.info(f"Successfully enriched with TMDB data")

@@ -139,10 +139,23 @@ describe('Home Page - Movie Display', () => {
     watched_date: '2024-01-15',
     rating: 5,
     tmdb_title: 'The Matrix',
+    tmdb_id: 603,
     poster: 'https://image.tmdb.org/t/p/w500/test.jpg',
+    backdrop: 'https://image.tmdb.org/t/p/w1280/test-backdrop.jpg',
     overview: 'A computer hacker learns about reality.',
     tmdb_rating: 8.7,
+    vote_count: 25000,
     release_date: '1999-03-31',
+    genres: ['Science Fiction', 'Action'],
+    runtime: 136,
+    cast: [
+      { name: 'Keanu Reeves', character: 'Neo' },
+      { name: 'Laurence Fishburne', character: 'Morpheus' },
+    ],
+    directors: [
+      { name: 'Lana Wachowski', job: 'Director' },
+      { name: 'Lilly Wachowski', job: 'Director' },
+    ],
   };
 
   it('displays movie data after successful upload', async () => {
@@ -248,8 +261,9 @@ describe('Home Page - Movie Display', () => {
       await user.click(uploadButton);
 
       await waitFor(() => {
-        const img = screen.getByAltText('The Matrix');
-        expect(img).toHaveAttribute('src', mockMovieData.poster);
+        const imgs = screen.getAllByAltText('The Matrix');
+        const posterImg = imgs.find(img => img.getAttribute('src') === mockMovieData.poster);
+        expect(posterImg).toHaveAttribute('src', mockMovieData.poster);
       });
     }
   });
@@ -280,15 +294,126 @@ describe('Home Page - Movie Display', () => {
     }
   });
 
+  it('displays genres when available', async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMovieData,
+    });
+
+    render(<Home />);
+
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
+      .closest('div')
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
+
+    if (input) {
+      const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
+      await user.upload(input, file);
+
+      const uploadButton = screen.getByRole('button', { name: /Upload & Analyze/i });
+      await user.click(uploadButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Science Fiction')).toBeInTheDocument();
+        expect(screen.getByText('Action')).toBeInTheDocument();
+      });
+    }
+  });
+
+  it('displays runtime when available', async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMovieData,
+    });
+
+    render(<Home />);
+
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
+      .closest('div')
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
+
+    if (input) {
+      const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
+      await user.upload(input, file);
+
+      const uploadButton = screen.getByRole('button', { name: /Upload & Analyze/i });
+      await user.click(uploadButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/136 min/)).toBeInTheDocument();
+      });
+    }
+  });
+
+  it('displays cast members when available', async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMovieData,
+    });
+
+    render(<Home />);
+
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
+      .closest('div')
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
+
+    if (input) {
+      const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
+      await user.upload(input, file);
+
+      const uploadButton = screen.getByRole('button', { name: /Upload & Analyze/i });
+      await user.click(uploadButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Keanu Reeves')).toBeInTheDocument();
+        expect(screen.getByText('as Neo')).toBeInTheDocument();
+      });
+    }
+  });
+
+  it('displays directors when available', async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMovieData,
+    });
+
+    render(<Home />);
+
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
+      .closest('div')
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
+
+    if (input) {
+      const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
+      await user.upload(input, file);
+
+      const uploadButton = screen.getByRole('button', { name: /Upload & Analyze/i });
+      await user.click(uploadButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Lana Wachowski')).toBeInTheDocument();
+      });
+    }
+  });
+
   it('handles missing TMDB data gracefully', async () => {
     const user = userEvent.setup();
     const dataWithoutTMDB = {
       ...mockMovieData,
       tmdb_title: null,
       poster: null,
+      backdrop: null,
       overview: null,
       tmdb_rating: null,
       release_date: null,
+      genres: [],
+      runtime: null,
+      cast: [],
+      directors: [],
     };
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({

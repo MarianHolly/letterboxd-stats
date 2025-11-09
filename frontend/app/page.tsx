@@ -2,16 +2,33 @@
 
 import { useState } from "react";
 
+interface CastMember {
+  name: string;
+  character: string;
+}
+
+interface Director {
+  name: string;
+  job: string;
+}
+
 interface MovieData {
   title: string;
   year: number | null;
   watched_date: string;
   rating: number | null;
   tmdb_title: string | null;
+  tmdb_id: number | null;
   poster: string | null;
+  backdrop: string | null;
   overview: string | null;
   tmdb_rating: number | null;
+  vote_count: number | null;
   release_date: string | null;
+  genres: string[];
+  runtime: number | null;
+  cast: CastMember[];
+  directors: Director[];
   error?: string;
 }
 
@@ -111,74 +128,166 @@ export default function Home() {
 
         {/* Results Section */}
         {movie && (
-          <div className="bg-white rounded-lg shadow-xl p-8">
-            <h2 className="text-2xl font-semibold mb-6">
-              Most Recent Movie Watched
-            </h2>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Poster */}
-              <div>
-                {movie.poster ? (
-                  <img
-                    src={movie.poster}
-                    alt={movie.title}
-                    className="w-full rounded-lg shadow-lg"
-                  />
-                ) : (
-                  <div className="w-full aspect-[2/3] bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">No poster available</span>
-                  </div>
-                )}
+          <div className="space-y-6">
+            {/* Backdrop */}
+            {movie.backdrop && (
+              <div className="w-full h-64 rounded-lg overflow-hidden shadow-xl">
+                <img
+                  src={movie.backdrop}
+                  alt={movie.title}
+                  className="w-full h-full object-cover"
+                />
               </div>
+            )}
 
-              {/* Details */}
-              <div className="space-y-4">
+            {/* Main Info Card */}
+            <div className="bg-white rounded-lg shadow-xl p-8">
+              <h2 className="text-2xl font-semibold mb-6">
+                Most Recent Movie Watched
+              </h2>
+
+              <div className="grid md:grid-cols-3 gap-8">
+                {/* Poster */}
                 <div>
-                  <h3 className="text-3xl font-bold">{movie.title}</h3>
-                  {movie.year && <p className="text-gray-600 text-lg">{movie.year}</p>}
-                </div>
-
-                <div className="flex gap-4">
-                  {movie.rating && (
-                    <div className="bg-blue-50 px-4 py-2 rounded-lg">
-                      <p className="text-sm text-gray-600">Your Rating</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {movie.rating}★
-                      </p>
-                    </div>
-                  )}
-                  {movie.tmdb_rating && (
-                    <div className="bg-amber-50 px-4 py-2 rounded-lg">
-                      <p className="text-sm text-gray-600">TMDB Rating</p>
-                      <p className="text-2xl font-bold text-amber-600">
-                        {movie.tmdb_rating.toFixed(1)}★
-                      </p>
+                  {movie.poster ? (
+                    <img
+                      src={movie.poster}
+                      alt={movie.title}
+                      className="w-full rounded-lg shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-full aspect-[2/3] bg-gray-200 rounded-lg flex items-center justify-center">
+                      <span className="text-gray-400">No poster available</span>
                     </div>
                   )}
                 </div>
 
-                <div>
-                  <p className="text-sm text-gray-600">Watched on</p>
-                  <p className="text-lg font-semibold">{movie.watched_date}</p>
+                {/* Main Details */}
+                <div className="md:col-span-2 space-y-4">
+                  {/* Title & Year */}
+                  <div>
+                    <h3 className="text-3xl font-bold">{movie.title}</h3>
+                    {movie.year && (
+                      <p className="text-gray-600 text-lg">{movie.year}</p>
+                    )}
+                  </div>
+
+                  {/* Ratings */}
+                  <div className="flex gap-3 flex-wrap">
+                    {movie.rating && (
+                      <div className="bg-blue-50 px-4 py-2 rounded-lg">
+                        <p className="text-sm text-gray-600">Your Rating</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {movie.rating}★
+                        </p>
+                      </div>
+                    )}
+                    {movie.tmdb_rating && (
+                      <div className="bg-amber-50 px-4 py-2 rounded-lg">
+                        <p className="text-sm text-gray-600">TMDB Rating</p>
+                        <p className="text-2xl font-bold text-amber-600">
+                          {movie.tmdb_rating.toFixed(1)}★
+                        </p>
+                        {movie.vote_count && (
+                          <p className="text-xs text-gray-500">
+                            {movie.vote_count.toLocaleString()} votes
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dates & Runtime */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Watched</p>
+                      <p className="font-semibold">{movie.watched_date}</p>
+                    </div>
+                    {movie.release_date && (
+                      <div>
+                        <p className="text-sm text-gray-600">Released</p>
+                        <p className="font-semibold">
+                          {new Date(movie.release_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    {movie.runtime && (
+                      <div>
+                        <p className="text-sm text-gray-600">Runtime</p>
+                        <p className="font-semibold">{movie.runtime} min</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Genres */}
+                  {movie.genres && movie.genres.length > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">Genres</p>
+                      <div className="flex flex-wrap gap-2">
+                        {movie.genres.map((genre) => (
+                          <span
+                            key={genre}
+                            className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm"
+                          >
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {movie.overview && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Overview</p>
-                    <p className="text-gray-700 leading-relaxed">
-                      {movie.overview}
-                    </p>
-                  </div>
-                )}
-
-                {movie.release_date && (
-                  <div>
-                    <p className="text-sm text-gray-600">Release Date</p>
-                    <p className="text-lg">{movie.release_date}</p>
-                  </div>
-                )}
               </div>
+
+              {/* Overview */}
+              {movie.overview && (
+                <div className="mt-8 pt-8 border-t">
+                  <p className="text-sm text-gray-600 mb-3 font-semibold">
+                    Overview
+                  </p>
+                  <p className="text-gray-700 leading-relaxed">
+                    {movie.overview}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Cast & Crew */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Cast */}
+              {movie.cast && movie.cast.length > 0 && (
+                <div className="bg-white rounded-lg shadow-xl p-6">
+                  <h3 className="text-xl font-semibold mb-4">Cast</h3>
+                  <div className="space-y-3">
+                    {movie.cast.map((member, idx) => (
+                      <div key={idx} className="border-l-4 border-blue-500 pl-4">
+                        <p className="font-semibold text-gray-900">
+                          {member.name}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          as {member.character}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Directors */}
+              {movie.directors && movie.directors.length > 0 && (
+                <div className="bg-white rounded-lg shadow-xl p-6">
+                  <h3 className="text-xl font-semibold mb-4">Directors</h3>
+                  <div className="space-y-3">
+                    {movie.directors.map((director, idx) => (
+                      <div key={idx} className="border-l-4 border-green-500 pl-4">
+                        <p className="font-semibold text-gray-900">
+                          {director.name}
+                        </p>
+                        <p className="text-sm text-gray-600">Director</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
