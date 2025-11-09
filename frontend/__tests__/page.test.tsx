@@ -30,7 +30,7 @@ describe('Home Page - Upload Form', () => {
     const user = userEvent.setup();
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i }).closest('div')?.querySelector('input[type="file"]');
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i }).closest('div')?.querySelector('input[type="file"]') as HTMLInputElement;
     expect(input).toBeInTheDocument();
 
     if (input) {
@@ -50,9 +50,9 @@ describe('Home Page - Upload Form', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -75,9 +75,9 @@ describe('Home Page - Upload Form', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -102,9 +102,9 @@ describe('Home Page - Upload Form', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       // Upload file that fails
@@ -154,9 +154,9 @@ describe('Home Page - Movie Display', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -182,9 +182,9 @@ describe('Home Page - Movie Display', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -209,9 +209,9 @@ describe('Home Page - Movie Display', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -236,9 +236,9 @@ describe('Home Page - Movie Display', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -263,9 +263,9 @@ describe('Home Page - Movie Display', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -298,9 +298,9 @@ describe('Home Page - Movie Display', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -331,9 +331,9 @@ describe('Home Page - Network Error Handling', () => {
 
     render(<Home />);
 
-    const input = screen.getByRole('button', { name: /Upload Your Diary/i })
+    const input = screen.getByRole('button', { name: /Upload & Analyze/i })
       .closest('div')
-      ?.querySelector('input[type="file"]');
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
 
     if (input) {
       const file = new File(['test,csv,content'], 'diary.csv', { type: 'text/csv' });
@@ -343,7 +343,7 @@ describe('Home Page - Network Error Handling', () => {
       await user.click(uploadButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/Failed to upload file/i)).toBeInTheDocument();
+        expect(screen.getByText(/Failed to fetch/i)).toBeInTheDocument();
       });
     }
   });

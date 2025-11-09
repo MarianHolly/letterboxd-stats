@@ -143,7 +143,7 @@ Pulp Fiction,1994,2024-01-05,4
         """Test CSV with special characters in titles"""
         csv_content = """Name,Year,Watched Date,Rating
 L'Avventura,1960,2024-01-15,4.5
-Crouching Tiger, Hidden Dragon,2000,2024-01-10,5
+"Crouching Tiger, Hidden Dragon",2000,2024-01-10,5
 The 7th Seal,1957,2024-01-05,4
 """
         df = pd.read_csv(io.StringIO(csv_content))

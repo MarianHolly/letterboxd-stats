@@ -161,8 +161,8 @@ class TestUploadEndpoint:
 class TestUploadWithMockedTMDB:
     """Test upload endpoint with mocked TMDB API"""
 
+    @patch('main.TMDB_API_KEY', 'test-key')
     @patch('main.requests.get')
-    @patch.dict('os.environ', {'TMDB_API_KEY': 'test-key'})
     def test_upload_with_tmdb_success(self, mock_get, client, valid_csv_data):
         """Test successful TMDB enrichment"""
         # Mock TMDB API response
@@ -194,8 +194,8 @@ class TestUploadWithMockedTMDB:
         assert data["tmdb_rating"] == 8.7
         assert data["release_date"] == "1999-03-31"
 
+    @patch('main.TMDB_API_KEY', 'test-key')
     @patch('main.requests.get')
-    @patch.dict('os.environ', {'TMDB_API_KEY': 'test-key'})
     def test_upload_with_tmdb_no_results(self, mock_get, client, valid_csv_data):
         """Test when TMDB API returns no results"""
         # Mock TMDB API response with no results
@@ -217,8 +217,8 @@ class TestUploadWithMockedTMDB:
         assert data["tmdb_title"] is None
         assert data["poster"] is None
 
+    @patch('main.TMDB_API_KEY', 'test-key')
     @patch('main.requests.get')
-    @patch.dict('os.environ', {'TMDB_API_KEY': 'test-key'})
     def test_upload_with_tmdb_api_error(self, mock_get, client, valid_csv_data):
         """Test when TMDB API returns error"""
         # Mock TMDB API error response
@@ -238,8 +238,8 @@ class TestUploadWithMockedTMDB:
         assert data["title"] == "The Matrix"
         assert data["tmdb_title"] is None
 
+    @patch('main.TMDB_API_KEY', 'test-key')
     @patch('main.requests.get')
-    @patch.dict('os.environ', {'TMDB_API_KEY': 'test-key'})
     def test_upload_with_tmdb_timeout(self, mock_get, client, valid_csv_data):
         """Test when TMDB API times out"""
         from requests.exceptions import Timeout
@@ -259,21 +259,21 @@ class TestUploadWithMockedTMDB:
         assert data["title"] == "The Matrix"
         assert data["tmdb_title"] is None
 
-    @patch.dict('os.environ', {}, clear=True)
     def test_upload_without_tmdb_key(self, client, valid_csv_data):
-        """Test upload without TMDB API key"""
-        response = client.post(
-            "/upload",
-            files={"file": ("diary.csv", valid_csv_data, "text/csv")}
-        )
+        """Test upload without TMDB API key (simulated by patching to None)"""
+        with patch('main.TMDB_API_KEY', None):
+            response = client.post(
+                "/upload",
+                files={"file": ("diary.csv", valid_csv_data, "text/csv")}
+            )
 
-        assert response.status_code == 200
-        data = response.json()
+            assert response.status_code == 200
+            data = response.json()
 
-        # Should return CSV data without TMDB enrichment
-        assert data["title"] == "The Matrix"
-        assert data["tmdb_title"] is None
-        assert data["poster"] is None
+            # Should return CSV data without TMDB enrichment
+            assert data["title"] == "The Matrix"
+            assert data["tmdb_title"] is None
+            assert data["poster"] is None
 
 
 class TestUploadErrorHandling:
