@@ -25,7 +25,7 @@ export function AnalyticsHeader({
             variant="outline"
             size="icon"
             onClick={() => toggleSidebar()}
-            className="border-gray-200 text-foreground hover:bg-gray-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+            className="border-gray-50 text-foreground hover:bg-gray-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
           >
             <Menu className="h-[1.2rem] w-[1.2rem]" />
             <span className="sr-only">Toggle sidebar</span>
