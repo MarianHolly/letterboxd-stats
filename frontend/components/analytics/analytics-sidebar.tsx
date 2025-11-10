@@ -3,6 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
 import {
   BarChart3,
   TrendingUp,
@@ -21,11 +23,20 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+
+export interface NavItem {
+  title: string;
+  href: string;
+  icon: React.ReactNode;
+  description?: string;
+}
+
+export interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
 
 // Navigation data for analytics sections
 const data = {
@@ -105,8 +116,60 @@ export function AnalyticsSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [activeSection, setActiveSection] = React.useState<string>("");
+
+  // Detect which section is currently in view
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const sections = [
+        "analytics-overview",
+        "analytics-patterns",
+        "analytics-genres",
+        "analytics-directors",
+        "analytics-decades",
+      ];
+
+      // Find which section is closest to viewport top
+      let closestSection = "";
+      let closestDistance = Infinity;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          const distance = Math.abs(rect.top - 150); // Offset from top
+
+          if (distance < closestDistance && rect.top < 400) {
+            closestDistance = distance;
+            closestSection = `#${section}`;
+          }
+        }
+      }
+
+      if (closestSection) {
+        setActiveSection(closestSection);
+      }
+    };
+
+    // Listen to scroll on the main content area
+    const mainElement = document.querySelector("main");
+    if (mainElement) {
+      mainElement.addEventListener("scroll", handleScroll, { passive: true });
+
+      return () => {
+        mainElement.removeEventListener("scroll", handleScroll);
+      };
+    }
+  }, []);
 
   const isActive = (href: string) => {
+    // Check if it's a hash link (analytics section)
+    if (href.startsWith("#")) {
+      return activeSection === href;
+    }
+
+    // Check if it's a regular route
     if (href === "/dashboard") {
       return pathname === "/dashboard";
     }
@@ -114,41 +177,73 @@ export function AnalyticsSidebar({
   };
 
   return (
-    <Sidebar {...props}>
-      <SidebarHeader className="pb-0">
+    <Sidebar
+      className="bg-white dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 border-r border-gray-200 dark:border-white/10"
+      {...props}
+    >
+      <SidebarHeader className="pb-0 bg-white dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-600 to-rose-600">
             <BarChart3 className="w-4 h-4 text-white" />
           </div>
           <div className="flex flex-col gap-0.5 leading-none">
-            <span className="font-bold text-sm">Letterboxd</span>
-            <span className="text-xs text-muted-foreground">Analytics</span>
+            <span className="font-bold text-sm text-foreground dark:text-white">
+              Letterboxd
+            </span>
+            <span className="text-xs text-gray-600 dark:text-white/60">
+              Analytics
+            </span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="bg-white dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950">
         {data.navMain.map((group) => (
           <SidebarGroup key={group.title}>
-            <SidebarGroupLabel className="text-sm opacity-50">{group.title}</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-xs font-semibold text-gray-800 dark:text-white/30 uppercase tracking-wider px-3 py-2">
+              {group.title}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <div className="space-y-1">
                 {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                      <Link href={item.href} className="flex items-start gap-3">
-                        <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {item.description}
-                          </p>
-                        </div>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 scroll-smooth",
+                      isActive(item.href)
+                        ? "bg-indigo-600/10 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30"
+                        : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex-shrink-0",
+                        isActive(item.href)
+                          ? "text-indigo-600 dark:text-indigo-400"
+                          : "text-gray-600 dark:text-white/70"
+                      )}
+                    >
+                      {item.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {item.title}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-xs truncate",
+                          isActive(item.href)
+                            ? "text-indigo-500 dark:text-indigo-300"
+                            : "text-gray-500 dark:text-white/50"
+                        )}
+                      >
+                        {item.description}
+                      </p>
+                    </div>
+                  </Link>
                 ))}
-              </SidebarMenu>
+              </div>
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
@@ -156,28 +251,47 @@ export function AnalyticsSidebar({
 
       <SidebarRail />
 
-      <SidebarFooter>
+      <SidebarFooter className="bg-white dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 border-t border-gray-200 dark:border-white/10">
         {data.footerNav.map((group) => (
           <SidebarGroup key={group.title}>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                      <Link href={item.href} className="flex items-start gap-3">
-                        <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {item.description}
-                          </p>
-                        </div>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
+            <div className="space-y-1">
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 scroll-smooth",
+                    isActive(item.href)
+                      ? "bg-indigo-600/10 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30"
+                      : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex-shrink-0",
+                      isActive(item.href)
+                        ? "text-indigo-600 dark:text-indigo-400"
+                        : "text-gray-600 dark:text-white/70"
+                    )}
+                  >
+                    {item.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{item.title}</p>
+                    <p
+                      className={cn(
+                        "text-xs truncate",
+                        isActive(item.href)
+                          ? "text-indigo-500 dark:text-indigo-300"
+                          : "text-gray-500 dark:text-white/50"
+                      )}
+                    >
+                      {item.description}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </SidebarGroup>
         ))}
       </SidebarFooter>
