@@ -12,9 +12,6 @@ import { useUploadStore } from "@/hooks/use-upload-store";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { BarChart3, Clock, Star, Film, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
-import { ViewingOverTime } from "@/components/dashboard/charts/viewing-over-time";
-import { RatingDistribution } from "@/components/dashboard/charts/rating-distribution";
-import { GenreDistribution } from "@/components/dashboard/charts/genre-distribution";
 import { ReleaseYearAnalysis } from "@/components/dashboard/charts/release-year-analysis";
 
 interface UploadedFile {
@@ -135,89 +132,6 @@ export default function DashboardPage() {
             delay={0.3}
           />
         </motion.div>
-
-        {/* Viewing Over Time - Full Width */}
-        <DashboardSection
-          title="Viewing Over Time"
-          description="Track your movie watching trends across different time periods"
-          delay={0.4}
-        >
-          {analytics.moviesPerMonth && Object.keys(analytics.moviesPerMonth).length > 0 ? (
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-              <ViewingOverTime data={analytics.moviesPerMonth} />
-            </div>
-          ) : (
-            <div className="p-8 rounded-lg bg-white/5 border border-white/10 text-center">
-              <p className="text-white/60">No data available</p>
-            </div>
-          )}
-        </DashboardSection>
-
-        {/* Rating Distribution & Future Section */}
-        <DashboardSection
-          title="Insights & Analysis"
-          description="Rating patterns and additional analytics"
-          delay={0.45}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Rating Distribution Chart */}
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Rating Distribution
-              </h3>
-              {analytics.ratingDistribution && Object.keys(analytics.ratingDistribution).length > 0 ? (
-                <RatingDistribution data={analytics.ratingDistribution} />
-              ) : (
-                <div className="p-8 text-center">
-                  <p className="text-white/60">No rating data available</p>
-                </div>
-              )}
-            </div>
-
-            {/* Reserved for Future */}
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center min-h-96">
-              <div className="text-center">
-                <p className="text-white/60">Coming Soon</p>
-                <p className="text-sm text-white/40 mt-2">
-                  Additional analytics reserved for future features
-                </p>
-              </div>
-            </div>
-          </div>
-        </DashboardSection>
-
-        {/* Genre Distribution & Future Section */}
-        <DashboardSection
-          title="Genre Analysis"
-          description="Explore your favorite genres and preferences"
-          delay={0.5}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Genre Distribution Chart */}
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Genre Distribution
-              </h3>
-              {analytics.genreDistribution && Object.keys(analytics.genreDistribution).length > 0 ? (
-                <GenreDistribution data={analytics.genreDistribution} />
-              ) : (
-                <div className="p-8 text-center">
-                  <p className="text-white/60">No genre data available</p>
-                </div>
-              )}
-            </div>
-
-            {/* Reserved for Future */}
-            <div className="p-4 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center min-h-96">
-              <div className="text-center">
-                <p className="text-white/60">Coming Soon</p>
-                <p className="text-sm text-white/40 mt-2">
-                  Director analysis and genre trends reserved for future features
-                </p>
-              </div>
-            </div>
-          </div>
-        </DashboardSection>
 
         {/* Release Year Analysis - Full Width */}
         <DashboardSection

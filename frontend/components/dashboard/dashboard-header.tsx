@@ -4,6 +4,7 @@ import { useUploadStore } from "@/hooks/use-upload-store";
 import { Button } from "@/components/ui/button";
 import { Upload, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
+import ThemeToggle from "@/components/layout/theme-toggle";
 
 interface DashboardHeaderProps {
   title: string;
@@ -38,7 +39,8 @@ export function DashboardHeader({
             )}
           </div>
 
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 items-center">
+            <ThemeToggle />
             {onRefreshClick && (
               <Button
                 variant="outline"
