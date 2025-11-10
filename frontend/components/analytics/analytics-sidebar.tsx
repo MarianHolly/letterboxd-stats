@@ -119,48 +119,58 @@ export function AnalyticsSidebar({
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("");
 
-  // Detect which section is currently in view
+  // Detect which section is currently in view using Intersection Observer
   React.useEffect(() => {
-    const handleScroll = () => {
-      const sections = [
-        "analytics-overview",
-        "analytics-patterns",
-        "analytics-genres",
-        "analytics-directors",
-        "analytics-decades",
-      ];
+    const sections = [
+      "analytics-overview",
+      "analytics-patterns",
+      "analytics-genres",
+      "analytics-directors",
+      "analytics-decades",
+    ];
 
-      // Find which section is closest to viewport top
-      let closestSection = "";
-      let closestDistance = Infinity;
+    // Create Intersection Observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the first (topmost) visible section
+        const visibleSections = entries.filter((entry) => entry.isIntersecting);
 
-      for (const section of sections) {
+        if (visibleSections.length > 0) {
+          // Sort by position in viewport (top to bottom)
+          const topMostSection = visibleSections.reduce((prev, current) => {
+            return prev.boundingClientRect.top > current.boundingClientRect.top
+              ? current
+              : prev;
+          });
+
+          setActiveSection(`#${topMostSection.target.id}`);
+        }
+      },
+      {
+        root: document.querySelector("main"),
+        rootMargin: "-20% 0px -80% 0px", // Trigger when section is in top 20% of viewport
+        threshold: 0, // Trigger as soon as section enters
+      }
+    );
+
+    // Observe all sections
+    sections.forEach((section) => {
+      const element = document.getElementById(section);
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    // Cleanup
+    return () => {
+      sections.forEach((section) => {
         const element = document.getElementById(section);
         if (element) {
-          const rect = element.getBoundingClientRect();
-          const distance = Math.abs(rect.top - 150); // Offset from top
-
-          if (distance < closestDistance && rect.top < 400) {
-            closestDistance = distance;
-            closestSection = `#${section}`;
-          }
+          observer.unobserve(element);
         }
-      }
-
-      if (closestSection) {
-        setActiveSection(closestSection);
-      }
+      });
+      observer.disconnect();
     };
-
-    // Listen to scroll on the main content area
-    const mainElement = document.querySelector("main");
-    if (mainElement) {
-      mainElement.addEventListener("scroll", handleScroll, { passive: true });
-
-      return () => {
-        mainElement.removeEventListener("scroll", handleScroll);
-      };
-    }
   }, []);
 
   const isActive = (href: string) => {
