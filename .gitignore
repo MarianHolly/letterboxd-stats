@@ -1,7 +1,13 @@
 .vscode
+.claude
 .env
 node_modules
 .idea
 .DS_Store
 .venv
 .next
+__pycache__
+.env.local
+.docs
+.github
+.prototype
