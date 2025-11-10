@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
-import { EmptyState } from "@/components/dashboard/empty-state";
+import { EmptyState } from "@/components/dashboard/empty-state";  
 import { LoadingSkeleton } from "@/components/dashboard/loading-skeleton";
 import { UploadModal } from "@/components/landing/upload-modal";
 import { useUploadStore } from "@/hooks/use-upload-store";
