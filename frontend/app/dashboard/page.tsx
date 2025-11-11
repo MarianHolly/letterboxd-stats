@@ -10,6 +10,7 @@ import { LoadingSkeleton } from "@/components/dashboard/loading-skeleton";
 import { UploadModal } from "@/components/landing/upload-modal";
 import { useUploadStore } from "@/hooks/use-upload-store";
 import { useAnalytics } from "@/hooks/use-analytics";
+
 import { BarChart3, Clock, Star, Film, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { ReleaseYearAnalysis } from "@/components/dashboard/charts/release-year-analysis";

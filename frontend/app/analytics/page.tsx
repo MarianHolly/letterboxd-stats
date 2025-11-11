@@ -1,25 +1,41 @@
-"use client"
+"use client";
 
-import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar"
-import { AnalyticsHeader } from "@/components/analytics/analytics-header"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar";
+import { AnalyticsHeader } from "@/components/analytics/analytics-header";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+
+import { useAnalytics } from "@/hooks/use-analytics";
+import { useUploadStore } from "@/hooks/use-upload-store";
+import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis"; 
 
 export default function AnalyticsPage() {
+  const files = useUploadStore((state) => state.files);
+
+  const watchedFile = files.find((f) => f.type === "watched");
+
+  const analytics = useAnalytics(watchedFile?.data || "");
 
   return (
     <SidebarProvider>
       <AnalyticsSidebar />
       <SidebarInset>
         <div className="flex flex-col h-screen bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 scroll-smooth">
-          <AnalyticsHeader title="Your true cinematic identity" description="Discover and explore your personality through Letterboxd statistics" />
+          <AnalyticsHeader
+            title="Your true cinematic identity"
+            description="Discover and explore your personality through Letterboxd statistics"
+          />
 
           <main className="flex-1 overflow-auto scroll-smooth">
             <div className="flex flex-1 flex-col gap-8 pt-8 px-8 pb-8 max-w-7xl mx-auto w-full">
               {/* Overview Section */}
               <section id="analytics-overview">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">Overview</h2>
-                  <p className="text-sm text-muted-foreground dark:text-white/60">Key statistics and metrics about your viewing habits</p>
+                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Overview
+                  </h2>
+                  <p className="text-sm text-muted-foreground dark:text-white/60">
+                    Key statistics and metrics about your viewing habits
+                  </p>
                 </div>
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                   <div className="bg-muted/50 dark:bg-white/5 aspect-video rounded-lg" />
@@ -28,20 +44,26 @@ export default function AnalyticsPage() {
                 </div>
               </section>
 
-              {/* Viewing Patterns Section */}
-              <section id="analytics-patterns">
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">Viewing Patterns</h2>
-                  <p className="text-sm text-muted-foreground dark:text-white/60">Trends and time-series analysis of your movie watching</p>
-                </div>
-                <div className="bg-muted/50 dark:bg-white/5 min-h-96 rounded-lg" />
+              {/* Release Year Analysis */}
+              <section id="analytics-release-year">
+                {analytics.moviesByReleaseYear && Object.keys(analytics.moviesByReleaseYear).length > 0 ? (
+                  <ReleasedYearAnalysis data={analytics.moviesByReleaseYear} />
+                ) : (
+                  <div className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-12 text-center">
+                    <p className="text-slate-500 dark:text-white/60">No release year data available. Upload your watched.csv to see your analysis.</p>
+                  </div>
+                )}
               </section>
 
               {/* Genres & Directors Section */}
               <section id="analytics-genres">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">Genres & Directors</h2>
-                  <p className="text-sm text-muted-foreground dark:text-white/60">Genre breakdown and your favorite directors</p>
+                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Genres & Directors
+                  </h2>
+                  <p className="text-sm text-muted-foreground dark:text-white/60">
+                    Genre breakdown and your favorite directors
+                  </p>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-muted/50 dark:bg-white/5 min-h-80 rounded-lg" />
@@ -52,8 +74,12 @@ export default function AnalyticsPage() {
               {/* Favorite Directors Section */}
               <section id="analytics-directors">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">Favorite Directors</h2>
-                  <p className="text-sm text-muted-foreground dark:text-white/60">Your most watched directors and their filmography</p>
+                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Favorite Directors
+                  </h2>
+                  <p className="text-sm text-muted-foreground dark:text-white/60">
+                    Your most watched directors and their filmography
+                  </p>
                 </div>
                 <div className="bg-muted/50 dark:bg-white/5 min-h-96 rounded-lg" />
               </section>
@@ -61,8 +87,12 @@ export default function AnalyticsPage() {
               {/* Decade Analysis Section */}
               <section id="analytics-decades">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">Decade Analysis</h2>
-                  <p className="text-sm text-muted-foreground dark:text-white/60">Movies by decade and era</p>
+                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Decade Analysis
+                  </h2>
+                  <p className="text-sm text-muted-foreground dark:text-white/60">
+                    Movies by decade and era
+                  </p>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-muted/50 dark:bg-white/5 min-h-80 rounded-lg" />
@@ -74,5 +104,5 @@ export default function AnalyticsPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
