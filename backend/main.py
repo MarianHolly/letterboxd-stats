@@ -8,6 +8,9 @@ import os
 import logging
 from dotenv import load_dotenv
 
+# Database imports (NEW)
+from app.db.session import init_db, close_db, SessionLocal
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -29,6 +32,43 @@ app.add_middleware(
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 if not TMDB_API_KEY:
     logger.warning("TMDB_API_KEY environment variable is not set!")
+
+
+# ============================================================
+# DATABASE INITIALIZATION (NEW)
+# ============================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Initialize database on application startup
+
+    This event runs once when the FastAPI app starts:
+    - Creates tables if they don't exist
+    - Checks database connection
+    """
+    try:
+        init_db()
+        logger.info("✓ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"✗ Database initialization failed: {str(e)}", exc_info=True)
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Close database connections on application shutdown
+
+    This event runs when FastAPI app shuts down:
+    - Closes all connection pools
+    - Ensures no leaked connections
+    """
+    try:
+        close_db()
+        logger.info("✓ Database connections closed")
+    except Exception as e:
+        logger.error(f"✗ Database shutdown failed: {str(e)}")
 
 
 @app.get("/")
