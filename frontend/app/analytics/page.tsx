@@ -89,6 +89,26 @@ export default function AnalyticsPage() {
                 </div>
               </section>
 
+              {/* Monthly Patterns Deep Dive */}
+              <section id="analytics-monthly-patterns">
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Monthly Patterns Analysis
+                  </h2>
+                  <p className="text-sm text-muted-foreground dark:text-white/60">
+                    Deep dive into your monthly viewing habits across years
+                  </p>
+                </div>
+                <div className="w-full flex justify-center">
+                  <div className="w-full max-w-4xl">
+                    <DiaryMonthlyRadarChart
+                      data={analytics.diaryMonthlyByYear || []}
+                      size="large"
+                    />
+                  </div>
+                </div>
+              </section>
+
               {/* Genres & Directors Section */}
               <section id="analytics-genres">
                 <div className="mb-4">

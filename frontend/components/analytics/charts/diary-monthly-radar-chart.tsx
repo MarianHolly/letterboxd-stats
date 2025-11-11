@@ -62,6 +62,7 @@ interface YearData {
 
 interface DiaryMonthlyRadarChartProps {
   data: YearData[];
+  size?: 'compact' | 'large';
 }
 
 type SmoothingLevel = 'none' | 'two-month' | 'three-month';
@@ -110,8 +111,9 @@ function smoothRadarData(
   return smoothed;
 }
 
-export function DiaryMonthlyRadarChart({ data }: DiaryMonthlyRadarChartProps) {
+export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyRadarChartProps) {
   const [smoothing, setSmoothing] = React.useState<SmoothingLevel>('none');
+  const chartHeight = size === 'large' ? 'h-[600px]' : 'h-[400px]';
 
   // Apply smoothing to all years - must be before early return
   const smoothedData = React.useMemo(() => {
@@ -192,7 +194,7 @@ export function DiaryMonthlyRadarChart({ data }: DiaryMonthlyRadarChartProps) {
           // Single year radar
           <ChartContainer
             config={{}}
-            className="aspect-square h-[400px] w-full max-w-md mx-auto"
+            className={`aspect-square ${chartHeight} w-full ${size === 'large' ? 'max-w-2xl' : 'max-w-md'} mx-auto`}
           >
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
@@ -243,7 +245,7 @@ export function DiaryMonthlyRadarChart({ data }: DiaryMonthlyRadarChartProps) {
           // Multiple years radar
           <ChartContainer
             config={{}}
-            className="aspect-square h-[400px] w-full max-w-md mx-auto"
+            className={`aspect-square ${chartHeight} w-full ${size === 'large' ? 'max-w-2xl' : 'max-w-md'} mx-auto`}
           >
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
