@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useUploadStore } from "@/hooks/use-upload-store";
-import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis"; 
+import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis";
 
 export default function AnalyticsPage() {
   const files = useUploadStore((state) => state.files);
@@ -46,13 +46,51 @@ export default function AnalyticsPage() {
 
               {/* Release Year Analysis */}
               <section id="analytics-release-year">
-                {analytics.moviesByReleaseYear && Object.keys(analytics.moviesByReleaseYear).length > 0 ? (
+                {analytics.moviesByReleaseYear &&
+                Object.keys(analytics.moviesByReleaseYear).length > 0 ? (
                   <ReleasedYearAnalysis data={analytics.moviesByReleaseYear} />
                 ) : (
                   <div className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-12 text-center">
-                    <p className="text-slate-500 dark:text-white/60">No release year data available. Upload your watched.csv to see your analysis.</p>
+                    <p className="text-slate-500 dark:text-white/60">
+                      No release year data available. Upload your watched.csv to
+                      see your analysis.
+                    </p>
                   </div>
                 )}
+              </section>
+
+              <section>
+                {/* Diary Patterns */}
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Diary Patterns
+                  </h2>
+                  <p className="text-sm text-muted-foreground dark:text-white/60">
+                    Analyze your watching habits over time
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 auto-rows-max lg:auto-rows-fr mb-4">
+                  {/* Left - Area Chart */}
+                  <div className="lg:col-span-2 lg:row-span-2">
+                    <div className="bg-muted/50 dark:bg-white/5 rounded-lg h-96" />
+                  </div>
+
+                  {/* Right - Radar Chart */}
+                  <div className="lg:col-span-1 lg:row-span-2">
+                    <div className="bg-muted/50 dark:bg-white/5 rounded-lg h-80 lg:h-full" />
+                  </div>
+                </div>
+                  <div>
+                                  {/* Diary Statistics */}
+
+                                <div className="bg-muted/50 dark:bg-white/5 min-h-60 rounded-lg" />
+                  </div>
+
+
+
+
+
               </section>
 
               {/* Genres & Directors Section */}
