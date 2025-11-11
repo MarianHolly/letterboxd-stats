@@ -86,6 +86,39 @@ function filterLastMonths(
 }
 
 /**
+ * Interpolates data points between actual months for smoother curves
+ * Adds midpoint data points with averaged values
+ * @param data - Original monthly data
+ * @returns Data with interpolated points
+ */
+function interpolateData(
+  data: Array<{ month: string; count: number }>
+): Array<{ month: string; count: number }> {
+  if (data.length < 2) return data;
+
+  const interpolated: Array<{ month: string; count: number }> = [];
+
+  for (let i = 0; i < data.length; i++) {
+    interpolated.push(data[i]);
+
+    // Add interpolated point between current and next
+    if (i < data.length - 1) {
+      const current = data[i];
+      const next = data[i + 1];
+      const avgCount = Math.round((current.count + next.count) / 2);
+
+      // Create interpolated label (e.g., "Jan 2024 ·")
+      interpolated.push({
+        month: `${current.month} ·`,
+        count: avgCount,
+      });
+    }
+  }
+
+  return interpolated;
+}
+
+/**
  * Extracts year boundaries from data
  * Returns month labels where a new year starts
  * @param data - Monthly data with month labels like "Jan 2024"
@@ -131,6 +164,9 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
     } else if (smoothing === 'three-month') {
       processed = smoothData(processed, 3);
     }
+
+    // Apply interpolation for smoother curves
+    processed = interpolateData(processed);
 
     return processed;
   }, [data, timeRange, smoothing]);
@@ -309,9 +345,10 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
                 cursor={{ fill: "rgba(0,0,0,0.05)" }}
               />
               <Area
-                type="natural"
+                type="basis"
                 dataKey="count"
                 stroke="var(--chart-1)"
+                strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorCount)"
                 isAnimationActive={false}
