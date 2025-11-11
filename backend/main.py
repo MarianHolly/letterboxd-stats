@@ -49,9 +49,9 @@ async def startup_event():
     """
     try:
         init_db()
-        logger.info("✓ Database initialized successfully")
+        logger.info("[OK] Database initialized successfully")
     except Exception as e:
-        logger.error(f"✗ Database initialization failed: {str(e)}", exc_info=True)
+        logger.error(f"[ERROR] Database initialization failed: {str(e)}", exc_info=True)
         raise
 
 
@@ -66,9 +66,9 @@ async def shutdown_event():
     """
     try:
         close_db()
-        logger.info("✓ Database connections closed")
+        logger.info("[OK] Database connections closed")
     except Exception as e:
-        logger.error(f"✗ Database shutdown failed: {str(e)}")
+        logger.error(f"[ERROR] Database shutdown failed: {str(e)}")
 
 
 @app.get("/")
