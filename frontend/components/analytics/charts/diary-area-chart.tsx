@@ -1,30 +1,3 @@
-/*
-
-Diary Area Chart for Analytics Page
-- Shows movies watched per month across all time
-- Area chart visualization with gradient fill
-- Interactive tooltips showing month and movie count
-- Smooth line interpolation for better visualization
-- Responsive sizing to fit container
-
-Usage:
-  <DiaryAreaChart data={monthlyData} />
-
-Data format:
-  Array of objects with:
-  - month: string (e.g., "2024-01", "Jan 2024")
-  - count: number (movies watched in that month)
-
-Example:
-  [
-    { month: "Jan 2024", count: 5 },
-    { month: "Feb 2024", count: 8 },
-    { month: "Mar 2024", count: 3 },
-    ...
-  ]
-
-*/
-
 "use client"
 
 import * as React from "react"
@@ -35,7 +8,6 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
-  Tooltip,
 } from "recharts"
 
 import {
@@ -59,6 +31,9 @@ interface DiaryAreaChartProps {
   }>;
 }
 
+type TimeRange = 'all' | 'last12';
+type SmoothingLevel = 'none' | 'two-month' | 'three-month';
+
 const chartConfig = {
   count: {
     label: "Movies",
@@ -66,7 +41,72 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
+/**
+ * Aggregates data by grouping consecutive months
+ * @param data - Original monthly data
+ * @param months - Number of months to group (2 or 3)
+ * @returns Aggregated data with labels like "Jan-Feb 2024"
+ */
+function smoothData(
+  data: Array<{ month: string; count: number }>,
+  months: number
+): Array<{ month: string; count: number }> {
+  if (months === 1) return data;
+
+  const smoothed: Array<{ month: string; count: number }> = [];
+
+  for (let i = 0; i < data.length; i += months) {
+    const slice = data.slice(i, i + months);
+    const totalCount = slice.reduce((sum, item) => sum + item.count, 0);
+    const firstMonth = slice[0].month;
+    const lastMonth = slice[slice.length - 1].month;
+
+    const label = months > 1 && slice.length > 1
+      ? `${firstMonth.split(' ')[0]}-${lastMonth}`
+      : firstMonth;
+
+    smoothed.push({
+      month: label,
+      count: totalCount,
+    });
+  }
+
+  return smoothed;
+}
+
+/**
+ * Filters data to show only last N months
+ */
+function filterLastMonths(
+  data: Array<{ month: string; count: number }>,
+  months: number
+): Array<{ month: string; count: number }> {
+  return data.slice(-months);
+}
+
 export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
+  const [timeRange, setTimeRange] = React.useState<TimeRange>('all');
+  const [smoothing, setSmoothing] = React.useState<SmoothingLevel>('none');
+
+  // Process data based on selected options
+  const processedData = React.useMemo(() => {
+    let processed = [...data];
+
+    // Apply time range filter
+    if (timeRange === 'last12') {
+      processed = filterLastMonths(processed, 12);
+    }
+
+    // Apply smoothing
+    if (smoothing === 'two-month') {
+      processed = smoothData(processed, 2);
+    } else if (smoothing === 'three-month') {
+      processed = smoothData(processed, 3);
+    }
+
+    return processed;
+  }, [data, timeRange, smoothing]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent">
@@ -90,13 +130,82 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
   return (
     <Card className="border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent">
       <CardHeader>
-        <CardTitle className="text-black dark:text-white">
-          Watching Timeline
-        </CardTitle>
-        <CardDescription className="text-slate-600 dark:text-white/60">
-          Movies watched per month across all time
-        </CardDescription>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-black dark:text-white">
+              Watching Timeline
+            </CardTitle>
+            <CardDescription className="text-slate-600 dark:text-white/60">
+              Movies watched {timeRange === 'last12' ? 'in last 12 months' : 'across all time'}
+            </CardDescription>
+          </div>
+
+          {/* Controls */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Time Range Selector */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTimeRange('all')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  timeRange === 'all'
+                    ? 'bg-slate-200 dark:bg-white/10 text-black dark:text-white'
+                    : 'bg-transparent text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/5'
+                }`}
+              >
+                All Time
+              </button>
+              <button
+                onClick={() => setTimeRange('last12')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  timeRange === 'last12'
+                    ? 'bg-slate-200 dark:bg-white/10 text-black dark:text-white'
+                    : 'bg-transparent text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/5'
+                }`}
+              >
+                Last 12M
+              </button>
+            </div>
+
+            {/* Smoothing Selector */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSmoothing('none')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  smoothing === 'none'
+                    ? 'bg-slate-200 dark:bg-white/10 text-black dark:text-white'
+                    : 'bg-transparent text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/5'
+                }`}
+                title="Show monthly data"
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setSmoothing('two-month')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  smoothing === 'two-month'
+                    ? 'bg-slate-200 dark:bg-white/10 text-black dark:text-white'
+                    : 'bg-transparent text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/5'
+                }`}
+                title="Average every 2 months"
+              >
+                2M Avg
+              </button>
+              <button
+                onClick={() => setSmoothing('three-month')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  smoothing === 'three-month'
+                    ? 'bg-slate-200 dark:bg-white/10 text-black dark:text-white'
+                    : 'bg-transparent text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-white/5'
+                }`}
+                title="Average every 3 months"
+              >
+                3M Avg
+              </button>
+            </div>
+          </div>
+        </div>
       </CardHeader>
+
       <CardContent>
         <ChartContainer
           config={chartConfig}
@@ -104,7 +213,7 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
         >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={data}
+              data={processedData}
               margin={{
                 left: 12,
                 right: 12,
@@ -154,7 +263,7 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
                 cursor={{ fill: "rgba(0,0,0,0.05)" }}
               />
               <Area
-                type="monotone"
+                type="natural"
                 dataKey="count"
                 stroke="var(--chart-1)"
                 fillOpacity={1}

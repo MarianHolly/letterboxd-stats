@@ -112,7 +112,7 @@ export function DiaryStatistics({ stats }: DiaryStatisticsProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-6 sm:gap-8">
+        <div className="flex flex-row flex-wrap justify-between gap-6 sm:gap-8">
           <StatItem
             label="Total Entries"
             value={stats.totalEntries ?? 0}
@@ -133,8 +133,11 @@ export function DiaryStatistics({ stats }: DiaryStatisticsProps) {
             value={stats.quietestMonthCount ?? 0}
             description={stats.quietestMonth}
           />
+        </div>
+      </CardContent>
+
           {stats.dateRange && (
-            <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-white/10">
+            <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-white/10 pl-8">
               <span className="text-xs text-slate-500 dark:text-white/50 font-medium uppercase">
                 Date Range
               </span>
@@ -143,8 +146,6 @@ export function DiaryStatistics({ stats }: DiaryStatisticsProps) {
               </p>
             </div>
           )}
-        </div>
-      </CardContent>
     </Card>
   )
 }
