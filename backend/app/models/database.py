@@ -48,7 +48,7 @@ class Session(Base):
        - Reason: 30-day sessions prevent unbounded database growth
        - Background task can cascade-delete expired sessions
 
-    5. JSONB metadata field
+    5. JSONB upload_metadata field
        - Reason: Store flexible upload metadata without schema changes
        - Example: {filenames: [], file_sizes: [], user_agent: "..."}
     """
@@ -78,7 +78,8 @@ class Session(Base):
     enriched_count = Column(Integer, default=0, nullable=False)
 
     # Flexible metadata: {filenames, file_sizes, user_agent, etc}
-    metadata = Column(JSON, default={}, nullable=False)
+    # Note: Column named 'upload_metadata' not 'metadata' (metadata is reserved by SQLAlchemy)
+    upload_metadata = Column(JSON, default={}, nullable=False)
 
     # Relationship: one session has many movies
     # cascade='all, delete-orphan' means: delete session → delete all its movies

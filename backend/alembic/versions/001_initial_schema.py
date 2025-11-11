@@ -40,7 +40,7 @@ def upgrade() -> None:
         sa.Column('error_message', sa.Text(), nullable=True),
         sa.Column('total_movies', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('enriched_count', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('metadata', sa.JSON(), nullable=False, server_default='{}'),
+        sa.Column('upload_metadata', sa.JSON(), nullable=False, server_default='{}'),
         sa.PrimaryKeyConstraint('id'),
     )
 

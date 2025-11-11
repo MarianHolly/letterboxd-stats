@@ -100,7 +100,7 @@ def init_db():
     from app.models.database import Base
 
     Base.metadata.create_all(bind=engine)
-    print("✓ Database tables created (if they didn't exist)")
+    print("[OK] Database tables created (if they didn't exist)")
 
 
 def close_db():
@@ -110,4 +110,4 @@ def close_db():
     Call this on application shutdown to gracefully close connections.
     """
     engine.dispose()
-    print("✓ Database connections closed")
+    print("[OK] Database connections closed")
