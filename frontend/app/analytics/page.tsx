@@ -5,19 +5,15 @@ import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 import { useAnalytics } from "@/hooks/use-analytics";
-import { useUploadStore } from "@/hooks/use-upload-store";
+import { useEnrichedDataFromStore } from "@/src/hooks/use-enriched-data";
 import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis";
 import { DiaryAreaChart } from "@/components/analytics/charts/diary-area-chart";
 import { DiaryStatistics } from "@/components/analytics/charts/diary-statistics";
 import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
 
 export default function AnalyticsPage() {
-  const files = useUploadStore((state) => state.files);
-
-  const watchedFile = files.find((f) => f.type === "watched");
-  const diaryFile = files.find((f) => f.type === "diary");
-
-  const analytics = useAnalytics(watchedFile?.data || "", diaryFile?.data);
+  const { enrichedData } = useEnrichedDataFromStore();
+  const analytics = useAnalytics(enrichedData);
 
   return (
     <SidebarProvider>
