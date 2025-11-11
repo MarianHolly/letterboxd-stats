@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts"
 
 import {
@@ -84,6 +85,33 @@ function filterLastMonths(
   return data.slice(-months);
 }
 
+/**
+ * Extracts year boundaries from data
+ * Returns month labels where a new year starts
+ * @param data - Monthly data with month labels like "Jan 2024"
+ * @returns Array of month labels where year changes occur
+ */
+function getYearBoundaries(
+  data: Array<{ month: string; count: number }>
+): string[] {
+  const boundaries: string[] = [];
+  let previousYear: string | null = null;
+
+  data.forEach((item) => {
+    // Extract year from month string (e.g., "Jan 2024" -> "2024")
+    const yearMatch = item.month.match(/\d{4}/);
+    const currentYear = yearMatch ? yearMatch[0] : null;
+
+    if (previousYear !== null && currentYear !== previousYear) {
+      boundaries.push(item.month);
+    }
+
+    previousYear = currentYear;
+  });
+
+  return boundaries;
+}
+
 export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
   const [timeRange, setTimeRange] = React.useState<TimeRange>('all');
   const [smoothing, setSmoothing] = React.useState<SmoothingLevel>('none');
@@ -106,6 +134,11 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
 
     return processed;
   }, [data, timeRange, smoothing]);
+
+  // Get year boundaries for reference lines
+  const yearBoundaries = React.useMemo(() => {
+    return getYearBoundaries(processedData);
+  }, [processedData]);
 
   if (!data || data.length === 0) {
     return (
@@ -236,6 +269,19 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.1)" />
+
+              {/* Year boundary lines */}
+              {yearBoundaries.map((monthLabel) => (
+                <ReferenceLine
+                  key={`year-boundary-${monthLabel}`}
+                  x={monthLabel}
+                  stroke="rgba(0,0,0,0.2)"
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                  className="dark:stroke-white/25"
+                />
+              ))}
+
               <XAxis
                 dataKey="month"
                 tickLine={false}
