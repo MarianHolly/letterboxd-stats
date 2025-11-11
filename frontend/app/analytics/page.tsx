@@ -70,23 +70,10 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 auto-rows-max lg:auto-rows-fr mb-4">
-                  {/* Left - Area Chart */}
-                  <div className="lg:col-span-2 lg:row-span-2">
-                    <DiaryAreaChart data={analytics.diaryByMonth || []} />
-                  </div>
+                <DiaryAreaChart data={analytics.diaryByMonth || []} />
 
-                  {/* Right - Radar Chart */}
-                  <div className="lg:col-span-1 lg:row-span-2">
-                    <DiaryMonthlyRadarChart
-                      data={analytics.diaryMonthlyByYear || []}
-                    />
-                  </div>
-                </div>
-                <div>
-                  {/* Diary Statistics */}
-                  <DiaryStatistics stats={analytics.diaryStats} />
-                </div>
+                {/* Diary Statistics */}
+                <DiaryStatistics stats={analytics.diaryStats} />
               </section>
 
               {/* Monthly Patterns Deep Dive */}
