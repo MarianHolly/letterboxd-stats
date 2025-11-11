@@ -7,13 +7,17 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useUploadStore } from "@/hooks/use-upload-store";
 import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis";
+import { DiaryAreaChart } from "@/components/analytics/charts/diary-area-chart";
+import { DiaryStatistics } from "@/components/analytics/charts/diary-statistics";
+import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
 
 export default function AnalyticsPage() {
   const files = useUploadStore((state) => state.files);
 
   const watchedFile = files.find((f) => f.type === "watched");
+  const diaryFile = files.find((f) => f.type === "diary");
 
-  const analytics = useAnalytics(watchedFile?.data || "");
+  const analytics = useAnalytics(watchedFile?.data || "", diaryFile?.data);
 
   return (
     <SidebarProvider>
@@ -69,28 +73,24 @@ export default function AnalyticsPage() {
                     Analyze your watching habits over time
                   </p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 auto-rows-max lg:auto-rows-fr mb-4">
                   {/* Left - Area Chart */}
                   <div className="lg:col-span-2 lg:row-span-2">
-                    <div className="bg-muted/50 dark:bg-white/5 rounded-lg h-96" />
+                    <DiaryAreaChart data={analytics.diaryByMonth || []} />
                   </div>
 
                   {/* Right - Radar Chart */}
                   <div className="lg:col-span-1 lg:row-span-2">
-                    <div className="bg-muted/50 dark:bg-white/5 rounded-lg h-80 lg:h-full" />
+                    <DiaryMonthlyRadarChart
+                      data={analytics.diaryMonthlyByYear || []}
+                    />
                   </div>
                 </div>
-                  <div>
-                                  {/* Diary Statistics */}
-
-                                <div className="bg-muted/50 dark:bg-white/5 min-h-60 rounded-lg" />
-                  </div>
-
-
-
-
-
+                <div>
+                  {/* Diary Statistics */}
+                  <DiaryStatistics stats={analytics.diaryStats} />
+                </div>
               </section>
 
               {/* Genres & Directors Section */}

@@ -79,6 +79,9 @@ export function ReleasedYearAnalysis({ data }: ReleaseYearAnalysisProps) {
     const classicCount = entries.filter(e => e.year <= 1969).reduce((sum, e) => sum + e.count, 0);
     const modernCount = entries.filter(e => e.year >= 1970).reduce((sum, e) => sum + e.count, 0);
 
+
+    // Year
+
     return {
       processedData: filtered,
       classicCount,
@@ -97,6 +100,8 @@ export function ReleasedYearAnalysis({ data }: ReleaseYearAnalysisProps) {
     : eraFilter === "modern"
     ? modernCount
     : allCount;
+
+    console.log("Processed Data:", processedData.map(d => `${d.year}: ${d.count}`));
 
   return (
     <Card className="py-0 border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent">
@@ -169,14 +174,19 @@ export function ReleasedYearAnalysis({ data }: ReleaseYearAnalysisProps) {
                   tick={{ fontSize: 12, fill: "rgba(0,0,0,0.6)" }}
                   className="dark:[&_text]:fill-white/70"
                 />
+                {/* count */}
                 <ChartTooltip
                   content={
+              
                     <ChartTooltipContent
-                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-lg"
-                      labelFormatter={(value: any) => `Year: ${value}`}
-                      formatter={(value: any) => {
-                        return [typeof value === 'number' ? `${value} movies` : value, 'Movies'];
-                      }}
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-lg text-center"
+                      labelFormatter={(processedData: any) => `Year: ${processedData.year}`} // shows undefined instead of year number for that particular bar
+                      formatter={
+                        (value: any) => {
+                        return [typeof value === 'number' ? `${value} movies` : value, ''];
+                      }
+                    }
+                
                     />
                   }
                   cursor={{ fill: "rgba(0,0,0,0.05)" }}
