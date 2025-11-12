@@ -94,45 +94,6 @@ export function ReleaseYearAnalysis({ data }: ReleaseYearAnalysisProps) {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-        <div>
-          <p className="text-xs text-white/50">Peak Year</p>
-          <p className="text-lg font-bold text-indigo-400">{mostWatched?.name}</p>
-          <p className="text-xs text-white/40">{mostWatched?.value} movies</p>
-        </div>
-        <div>
-          <p className="text-xs text-white/50">Average per Year</p>
-          <p className="text-lg font-bold text-rose-400">{avgMoviesPerYear}</p>
-        </div>
-      </div>
-
-      {/* Year List */}
-      <div className="space-y-1 max-h-48 overflow-y-auto">
-        {chartData.map((item) => {
-          const percentage = ((item.value / total) * 100).toFixed(0);
-          return (
-            <div key={item.name} className="flex items-center justify-between text-sm">
-              <span className="text-white/70 min-w-16">{item.name}</span>
-              <div className="flex-1 mx-3">
-                <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${percentage}%`,
-                      backgroundColor: getColor(item.year),
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="text-right min-w-16">
-                <p className="text-white/70">{item.value}</p>
-                <p className="text-white/40 text-xs">{percentage}%</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Chart */}
       <div className="w-full h-80 mt-6">
