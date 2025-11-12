@@ -134,3 +134,28 @@ def get_enrichment_stats(session_id: str, db: Session = Depends(get_db)):
             }
         }
     }
+
+@router.get("/test/session/{session_id}/unenriched-movies")
+def get_unenriched_movies(session_id: str, db: Session = Depends(get_db)):
+    """
+    Get list of movies that still need enrichment.
+
+    Useful for debugging why enrichment might be stuck.
+    """
+    storage = StorageService(db)
+
+    unenriched = storage.get_unenriched_movies(session_id)
+
+    return {
+        "session_id": session_id,
+        "unenriched_count": len(unenriched),
+        "movies": [
+            {
+                "id": m.id,
+                "title": m.title,
+                "year": m.year,
+                "letterboxd_uri": m.letterboxd_uri
+            }
+            for m in unenriched[:20]  # First 20
+        ]
+    }
