@@ -190,6 +190,16 @@ export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyR
     setHiddenYears(newHidden);
   };
 
+  // Create a color map based on original year positions (before filtering)
+  const yearColorMap = React.useMemo(() => {
+    if (!data || data.length === 0) return {};
+    const map: Record<number, string> = {};
+    data.forEach((yearData, index) => {
+      map[yearData.year] = yearColors[index % yearColors.length];
+    });
+    return map;
+  }, [data]);
+
   // Apply smoothing to all years - must be before early return
   const smoothedData = React.useMemo(() => {
     if (!data || data.length === 0) {
@@ -394,8 +404,8 @@ export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyR
                   }}
                   cursor={{ fill: "rgba(0,0,0,0.05)" }}
                 />
-                {smoothedData.map((yearData, index) => {
-                  const color = yearColors[index % yearColors.length];
+                {smoothedData.map((yearData) => {
+                  const color = yearColorMap[yearData.year] || yearColors[0];
                   return (
                     <Radar
                       key={`radar-${yearData.year}`}
@@ -456,8 +466,9 @@ export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyR
 
           {/* Year Legend */}
           <div className="flex flex-wrap gap-3">
-            {data.map((yearData, dataIndex) => {
+            {data.map((yearData) => {
               const isHidden = hiddenYears.has(yearData.year);
+              const color = yearColorMap[yearData.year] || yearColors[0];
               return (
                 <button
                   key={yearData.year}
@@ -473,7 +484,7 @@ export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyR
                     className={`w-2.5 h-2.5 rounded-full transition-opacity ${
                       isHidden ? 'opacity-50' : 'opacity-100'
                     }`}
-                    style={{ backgroundColor: yearColors[dataIndex % yearColors.length] }}
+                    style={{ backgroundColor: color }}
                   />
                   <span className={`text-xs font-medium transition-opacity ${
                     isHidden
