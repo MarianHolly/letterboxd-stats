@@ -208,6 +208,17 @@ export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyR
 
   if (!data || data.length === 0) {
     return (
+
+  // Create year index map BEFORE early return (hooks must be in same order)
+  const yearIndexMap = React.useMemo(() => {
+    if (!data || data.length === 0) return {};
+    const map: Record<number, number> = {};
+    data.forEach((yearData, originalIndex) => {
+      map[yearData.year] = originalIndex;
+    });
+    return map;
+  }, [data]);
+
       <Card className="border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent">
         <CardHeader>
           <CardTitle className="text-black dark:text-white">
@@ -237,14 +248,6 @@ export function DiaryMonthlyRadarChart({ data, size = 'compact' }: DiaryMonthlyR
   )
 
   // Create a mapping of original year index to smoothedData index for consistent coloring
-  const yearIndexMap = React.useMemo(() => {
-    const map: Record<number, number> = {};
-    data.forEach((yearData, originalIndex) => {
-      const smoothedIndex = smoothedData.findIndex(s => s.year === yearData.year);
-      map[yearData.year] = originalIndex;
-    });
-    return map;
-  }, [data, smoothedData]);
 
   // Transform data for radar chart display
   const radarData = smoothedData.length === 1
