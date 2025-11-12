@@ -116,9 +116,14 @@ const data = {
   ],
 };
 
+interface AnalyticsSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  onUploadClick?: () => void;
+}
+
 export function AnalyticsSidebar({
+  onUploadClick,
   ...props
-}: React.ComponentProps<typeof Sidebar>) {
+}: AnalyticsSidebarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("");
@@ -270,42 +275,68 @@ export function AnalyticsSidebar({
         {data.footerNav.map((group) => (
           <SidebarGroup key={group.title}>
             <div className="space-y-1">
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 scroll-smooth",
-                    isActive(item.href)
-                      ? "bg-indigo-600/10 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30"
-                      : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "flex-shrink-0",
-                      isActive(item.href)
-                        ? "text-indigo-600 dark:text-indigo-400"
-                        : "text-gray-600 dark:text-white/70"
-                    )}
-                  >
-                    {item.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{item.title}</p>
-                    <p
+              {group.items.map((item) => {
+                // Special handling for "Upload New Data" to trigger modal instead of navigate
+                if (item.title === "Upload New Data") {
+                  return (
+                    <button
+                      key={item.href}
+                      onClick={onUploadClick}
                       className={cn(
-                        "text-xs truncate",
-                        isActive(item.href)
-                          ? "text-indigo-500 dark:text-indigo-300"
-                          : "text-gray-500 dark:text-white/50"
+                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 scroll-smooth text-left",
+                        "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
                       )}
                     >
-                      {item.description}
-                    </p>
-                  </div>
-                </Link>
-              ))}
+                      <div className="flex-shrink-0 text-gray-600 dark:text-white/70">
+                        {item.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{item.title}</p>
+                        <p className="text-xs truncate text-gray-500 dark:text-white/50">
+                          {item.description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 scroll-smooth",
+                      isActive(item.href)
+                        ? "bg-indigo-600/10 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30"
+                        : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex-shrink-0",
+                        isActive(item.href)
+                          ? "text-indigo-600 dark:text-indigo-400"
+                          : "text-gray-600 dark:text-white/70"
+                      )}
+                    >
+                      {item.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{item.title}</p>
+                      <p
+                        className={cn(
+                          "text-xs truncate",
+                          isActive(item.href)
+                            ? "text-indigo-500 dark:text-indigo-300"
+                            : "text-gray-500 dark:text-white/50"
+                        )}
+                      >
+                        {item.description}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </SidebarGroup>
         ))}

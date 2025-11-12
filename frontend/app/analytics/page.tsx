@@ -1,23 +1,65 @@
 "use client";
 
+import { useState } from "react";
 import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar";
 import { AnalyticsHeader } from "@/components/analytics/analytics-header";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { UploadModal } from "@/components/landing/upload-modal";
 
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useUploadStore } from "@/hooks/use-upload-store";
 import { useEnrichedDataFromStore } from "@/src/hooks/use-enriched-data";
 import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis";
 import { DiaryAreaChart } from "@/components/analytics/charts/diary-area-chart";
 import { DiaryStatistics } from "@/components/analytics/charts/diary-statistics";
 import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
 
+interface UploadedFile {
+  file: File;
+  type: "watched" | "ratings" | "diary" | "unknown";
+  status: "uploading" | "success" | "error";
+  progress: number;
+  error?: string;
+}
+
 export default function AnalyticsPage() {
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
   const { enrichedData } = useEnrichedDataFromStore();
   const analytics = useAnalytics(enrichedData);
 
+  const addFile = useUploadStore((state) => state.addFile);
+  const clearFiles = useUploadStore((state) => state.clearFiles);
+
+  const handleUploadComplete = async (uploadedFiles: UploadedFile[]) => {
+    try {
+      // Clear old data first
+      clearFiles();
+
+      // Add new files
+      for (const file of uploadedFiles) {
+        if (file.status === "success" && file.type !== "unknown") {
+          const csvContent = await file.file.text();
+          addFile({
+            id: `${Date.now()}_${Math.random()}`,
+            name: file.file.name,
+            size: file.file.size,
+            type: file.type,
+            data: csvContent,
+            uploadedAt: Date.now(),
+          });
+        }
+      }
+      setIsUploadModalOpen(false);
+    } catch (error) {
+      console.error("Error processing files:", error);
+      alert("Error processing files. Please try again.");
+    }
+  };
+
   return (
     <SidebarProvider>
-      <AnalyticsSidebar />
+      <AnalyticsSidebar onUploadClick={() => setIsUploadModalOpen(true)} />
       <SidebarInset>
         <div className="flex flex-col h-screen bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 scroll-smooth">
           <AnalyticsHeader
@@ -147,6 +189,12 @@ export default function AnalyticsPage() {
             </div>
           </main>
         </div>
+        {/* Upload Modal */}
+        <UploadModal
+          open={isUploadModalOpen}
+          onOpenChange={setIsUploadModalOpen}
+          onUploadComplete={handleUploadComplete}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
