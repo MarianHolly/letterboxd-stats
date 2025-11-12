@@ -197,7 +197,7 @@ export function DiaryAreaChart({ data }: DiaryAreaChartProps) {
   }
 
   return (
-    <Card className="border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent">
+    <Card className="border border-slate-200 dark:border-white/10 bg-white dark:bg-transparent mb-4">
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

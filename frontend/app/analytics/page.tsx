@@ -70,10 +70,8 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
 
-                {/* 
-
                 <DiaryAreaChart data={analytics.diaryByMonth || []} />
-                 */}
+               
 
                 {/* Diary Statistics */}
                 <DiaryStatistics stats={analytics.diaryStats} />
@@ -92,11 +90,11 @@ export default function AnalyticsPage() {
                 <div className="w-full flex justify-center">
                   <div className="w-full max-w-4xl">
 
-                    {/* Monthly Radar Chart 
                     <DiaryMonthlyRadarChart
                       data={analytics.diaryMonthlyByYear || []}
                       size="large"
                     />
+                    {/* Monthly Radar Chart 
                     */}
                   </div>
                 </div>
