@@ -342,7 +342,11 @@ class TMDBClient:
                 'budget': movie_details.get('budget'),
                 'revenue': movie_details.get('revenue'),
                 'popularity': movie_details.get('popularity'),
-                'vote_average': movie_details.get('vote_average')
+                'vote_average': movie_details.get('vote_average'),
+                'original_language': movie_details.get('original_language'), 
+                'country': self._extract_country(                              
+                    movie_details.get('production_countries', [])
+                )
             }
 
             # Filter out None values and empty lists
@@ -378,6 +382,30 @@ class TMDBClient:
             if person.get('name')
         ]
         return actors[:5] if actors else []  # Limit to top 5 cast members
+    
+    def _extract_country(self, production_countries: List[Dict]) -> Optional[str]:
+        """Extract country name from production countries list.
+
+        Args:
+            production_countries: List of country dicts from TMDB
+
+        Returns:
+            Country name string or None
+
+        Example:
+            Input: [{'iso_3166_1': 'US', 'name': 'United States'}]
+            Output: 'United States'
+        """
+        if not production_countries:
+            return None
+
+        # Get first country (most common case)
+        country = production_countries[0].get('name')
+
+        if country:
+            return country.strip()
+
+        return None
 
     def enrich_movie(self, title: str, year: Optional[int] = None) -> Optional[Dict]:
         """
