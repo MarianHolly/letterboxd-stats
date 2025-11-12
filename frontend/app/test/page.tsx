@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useUploadStore } from "@/hooks/use-upload-store";
-import { useAnalytics } from "@/hooks/use-analytics";
 import Papa from "papaparse";
 
 interface CsvData {
@@ -11,6 +10,8 @@ interface CsvData {
   rowCount: number;
 }
 
+// useAnalytic
+ 
 export default function TestPage() {
   const files = useUploadStore((state) => state.files);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -40,13 +41,7 @@ export default function TestPage() {
     }
   }, [selectedFile, files]);
 
-  // Compute analytics for watched file
-  useEffect(() => {
-    if (watchedFile?.data) {
-      const analyticsData = useAnalytics(watchedFile.data);
-      setAnalytics(analyticsData);
-    }
-  }, [watchedFile]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
