@@ -178,3 +178,59 @@ class StorageService:
             }
         except SQLAlchemyError as e:
             raise Exception(f"Failed to get session stats: {str(e)}")
+
+    def get_unenriched_movies(self, session_id: str) -> List[Movie]:
+        """Get all movies that haven't been enriched with TMDB data yet."""
+        try:
+            return self.db.query(Movie).filter(
+                Movie.session_id == session_id,
+                Movie.tmdb_enriched == False
+            ).all()
+        except SQLAlchemyError as e:
+            raise Exception(f"Failed to get unenriched movies: {str(e)}")
+
+    def get_enriching_sessions(self) -> List[Session]:
+        """Get all sessions currently being enriched (status='enriching')."""
+        try:
+            return self.db.query(Session).filter(
+                Session.status == "enriching",
+                Session.expires_at > datetime.utcnow()
+            ).all()
+        except SQLAlchemyError as e:
+            raise Exception(f"Failed to get enriching sessions: {str(e)}")
+
+    def update_movie_enrichment(self, movie_id: int, tmdb_data: dict) -> None:
+        """Update a movie with TMDB enrichment data."""
+        try:
+            movie = self.db.query(Movie).filter(Movie.id == movie_id).first()
+            if not movie:
+                raise Exception(f"Movie with id {movie_id} not found")
+
+            # Update TMDB fields
+            movie.tmdb_id = tmdb_data.get("tmdb_id")
+            movie.genres = tmdb_data.get("genres")
+            movie.directors = tmdb_data.get("directors")
+            movie.cast = tmdb_data.get("cast")
+            movie.runtime = tmdb_data.get("runtime")
+            movie.budget = tmdb_data.get("budget")
+            movie.revenue = tmdb_data.get("revenue")
+            movie.popularity = tmdb_data.get("popularity")
+            movie.vote_average = tmdb_data.get("vote_average")
+            movie.tmdb_enriched = True
+            movie.enriched_at = datetime.utcnow()
+
+            self.db.commit()
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise Exception(f"Failed to update movie enrichment: {str(e)}")
+
+    def increment_enriched_count(self, session_id: str) -> None:
+        """Increment the enriched_count for a session by 1."""
+        try:
+            session = self.db.query(Session).filter(Session.id == session_id).first()
+            if session:
+                session.enriched_count += 1
+                self.db.commit()
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise Exception(f"Failed to increment enriched count: {str(e)}")
