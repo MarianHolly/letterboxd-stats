@@ -13,7 +13,7 @@ from app.services.storage import StorageService
 from app.services.enrichment_worker import EnrichmentWorker
 
 # API routes
-from app.api import upload, session
+from app.api import upload, session, test
 
 # Load environment variables
 load_dotenv()
@@ -109,6 +109,7 @@ async def root():
 # Include routers
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(session.router, prefix="/api", tags=["session"])
+app.include_router(test.router, prefix="/api", tags=["test"])
 
 # Health check
 @app.get("/health")
