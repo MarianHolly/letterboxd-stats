@@ -5,7 +5,12 @@ import logging
 from dotenv import load_dotenv
 
 # Database imports
-from app.db.session import init_db, close_db
+from app.db.session import init_db, close_db, SessionLocal
+
+# Services imports
+from app.services.tmdb_client import TMDBClient
+from app.services.storage import StorageService
+from app.services.enrichment_worker import EnrichmentWorker
 
 # API routes
 from app.api import upload, session
@@ -33,20 +38,63 @@ TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 if not TMDB_API_KEY:
     logger.warning("TMDB_API_KEY environment variable is not set!")
 
+# Global service instances
+tmdb_client = None
+enrichment_worker = None
+
 # Database startup/shutdown
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup."""
+    """Initialize database, TMDB client, and enrichment worker on startup."""
+    global tmdb_client, enrichment_worker
+
     try:
+        # Initialize database
         init_db()
         logger.info("[OK] Database initialized")
     except Exception as e:
         logger.error(f"[ERROR] Database initialization failed: {str(e)}")
+        return
+
+    try:
+        # Initialize TMDB client
+        if TMDB_API_KEY:
+            tmdb_client = TMDBClient(TMDB_API_KEY)
+            logger.info("[OK] TMDB Client initialized")
+        else:
+            logger.error("[ERROR] TMDB_API_KEY not set - enrichment will not work")
+            return
+
+    except Exception as e:
+        logger.error(f"[ERROR] TMDB Client initialization failed: {str(e)}")
+        return
+
+    try:
+        # Initialize enrichment worker
+        db = SessionLocal()
+        storage = StorageService(db)
+        enrichment_worker = EnrichmentWorker(tmdb_client, storage)
+        enrichment_worker.start_scheduler()
+        logger.info("[OK] Enrichment Worker started")
+
+    except Exception as e:
+        logger.error(f"[ERROR] Enrichment Worker initialization failed: {str(e)}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Close database on shutdown."""
+    """Stop enrichment worker and close database on shutdown."""
+    global enrichment_worker
+
     try:
+        # Stop enrichment worker
+        if enrichment_worker:
+            enrichment_worker.stop_scheduler()
+            logger.info("[OK] Enrichment Worker stopped")
+    except Exception as e:
+        logger.error(f"[ERROR] Enrichment Worker shutdown failed: {str(e)}")
+
+    try:
+        # Close database connections
         close_db()
         logger.info("[OK] Database connections closed")
     except Exception as e:
@@ -67,6 +115,31 @@ app.include_router(session.router, prefix="/api", tags=["session"])
 async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+# Worker status endpoint
+@app.get("/worker/status")
+async def worker_status():
+    """Get enrichment worker status.
+
+    Returns information about the background enrichment worker:
+    - Whether it's running
+    - Last execution time
+    - Next scheduled execution
+    """
+    global enrichment_worker
+
+    if not enrichment_worker:
+        return {
+            "worker_status": "not_initialized",
+            "running": False,
+            "message": "Enrichment worker not initialized"
+        }
+
+    status = enrichment_worker.get_status()
+    return {
+        "worker_status": "running" if status["running"] else "stopped",
+        **status
+    }
 
 if __name__ == "__main__":
     import uvicorn
