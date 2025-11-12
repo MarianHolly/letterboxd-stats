@@ -67,6 +67,8 @@ def upgrade() -> None:
         sa.Column('revenue', sa.Integer(), nullable=True),
         sa.Column('popularity', sa.Float(), nullable=True),
         sa.Column('vote_average', sa.Float(), nullable=True),
+        sa.Column('country', sa.String(100), nullable=True),
+        sa.Column('original_language', sa.String(10), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('enriched_at', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ondelete='CASCADE'),
