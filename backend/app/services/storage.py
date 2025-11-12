@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.models.database import SessionModel, MovieModel
+from app.models.database import Session, Movie
 
 
 class StorageService:
@@ -21,7 +21,7 @@ class StorageService:
         try:
             session_id = str(uuid.uuid4())
             now = datetime.utcnow()
-            new_session = SessionModel(
+            new_session = Session(
                 id=session_id,
                 status="processing",
                 total_movies=0,
@@ -38,10 +38,10 @@ class StorageService:
             self.db.rollback()
             raise Exception(f"Failed to create session: {str(e)}")
 
-    def get_session(self, session_id: str) -> Optional[SessionModel]:
+    def get_session(self, session_id: str) -> Optional[Session]:
         """Retrieve a session by ID."""
         try:
-            session = self.db.query(SessionModel).filter(SessionModel.id == session_id).first()
+            session = self.db.query(Session).filter(Session.id == session_id).first()
             if session:
                 now = datetime.utcnow()
                 session.last_accessed = now
@@ -55,9 +55,9 @@ class StorageService:
     def session_exists(self, session_id: str) -> bool:
         """Check if session exists and hasn't expired."""
         try:
-            session = self.db.query(SessionModel).filter(
-                SessionModel.id == session_id,
-                SessionModel.expires_at > datetime.utcnow()
+            session = self.db.query(Session).filter(
+                Session.id == session_id,
+                Session.expires_at > datetime.utcnow()
             ).first()
             return session is not None
         except SQLAlchemyError as e:
@@ -69,7 +69,7 @@ class StorageService:
         if status not in valid_statuses:
             raise ValueError(f"Invalid status: {status}")
         try:
-            session = self.db.query(SessionModel).filter(SessionModel.id == session_id).first()
+            session = self.db.query(Session).filter(Session.id == session_id).first()
             if session:
                 session.status = status
                 self.db.commit()
@@ -80,7 +80,7 @@ class StorageService:
     def update_enriched_count(self, session_id: str, count: int) -> None:
         """Update enriched movie count."""
         try:
-            session = self.db.query(SessionModel).filter(SessionModel.id == session_id).first()
+            session = self.db.query(Session).filter(Session.id == session_id).first()
             if session:
                 session.enriched_count = count
                 self.db.commit()
@@ -93,7 +93,7 @@ class StorageService:
         if not movies:
             raise ValueError("No movies to store")
         try:
-            movie_objects = [MovieModel(
+            movie_objects = [Movie(
                 session_id=session_id,
                 title=m.get("title"),
                 year=m.get("year"),
@@ -116,8 +116,8 @@ class StorageService:
     def _update_total_movies_count(self, session_id: str) -> None:
         """Update total_movies count in session."""
         try:
-            count = self.db.query(func.count(MovieModel.id)).filter(MovieModel.session_id == session_id).scalar()
-            session = self.db.query(SessionModel).filter(SessionModel.id == session_id).first()
+            count = self.db.query(func.count(Movie.id)).filter(Movie.session_id == session_id).scalar()
+            session = self.db.query(Session).filter(Session.id == session_id).first()
             if session:
                 session.total_movies = count
                 self.db.commit()
@@ -125,33 +125,33 @@ class StorageService:
             self.db.rollback()
             raise Exception(f"Failed to update total movies count: {str(e)}")
 
-    def get_movies(self, session_id: str, limit: int = 50, offset: int = 0) -> Tuple[List[MovieModel], int]:
+    def get_movies(self, session_id: str, limit: int = 50, offset: int = 0) -> Tuple[List[Movie], int]:
         """Retrieve movies for a session with pagination."""
         try:
-            total = self.db.query(func.count(MovieModel.id)).filter(MovieModel.session_id == session_id).scalar()
-            movies = self.db.query(MovieModel).filter(MovieModel.session_id == session_id).order_by(MovieModel.watched_date.desc()).limit(limit).offset(offset).all()
+            total = self.db.query(func.count(Movie.id)).filter(Movie.session_id == session_id).scalar()
+            movies = self.db.query(Movie).filter(Movie.session_id == session_id).order_by(Movie.watched_date.desc()).limit(limit).offset(offset).all()
             return movies, total
         except SQLAlchemyError as e:
             raise Exception(f"Failed to retrieve movies: {str(e)}")
 
-    def get_movie_by_uri(self, session_id: str, letterboxd_uri: str) -> Optional[MovieModel]:
+    def get_movie_by_uri(self, session_id: str, letterboxd_uri: str) -> Optional[Movie]:
         """Retrieve a single movie by URI."""
         try:
-            return self.db.query(MovieModel).filter(MovieModel.session_id == session_id, MovieModel.letterboxd_uri == letterboxd_uri).first()
+            return self.db.query(Movie).filter(Movie.session_id == session_id, Movie.letterboxd_uri == letterboxd_uri).first()
         except SQLAlchemyError as e:
             raise Exception(f"Failed to retrieve movie: {str(e)}")
 
-    def get_expired_sessions(self) -> List[SessionModel]:
+    def get_expired_sessions(self) -> List[Session]:
         """Get all expired sessions."""
         try:
-            return self.db.query(SessionModel).filter(SessionModel.expires_at <= datetime.utcnow()).all()
+            return self.db.query(Session).filter(Session.expires_at <= datetime.utcnow()).all()
         except SQLAlchemyError as e:
             raise Exception(f"Failed to get expired sessions: {str(e)}")
 
     def delete_session(self, session_id: str) -> None:
         """Delete a session and all its movies."""
         try:
-            session = self.db.query(SessionModel).filter(SessionModel.id == session_id).first()
+            session = self.db.query(Session).filter(Session.id == session_id).first()
             if session:
                 self.db.delete(session)
                 self.db.commit()
@@ -163,12 +163,12 @@ class StorageService:
         """Get quick statistics for a session."""
         try:
             result = self.db.query(
-                func.count(MovieModel.id).label("total_movies"),
-                func.avg(MovieModel.rating).label("average_rating"),
-                func.min(MovieModel.year).label("min_year"),
-                func.max(MovieModel.year).label("max_year"),
-                func.count(MovieModel.rating).label("rated_count")
-            ).filter(MovieModel.session_id == session_id).first()
+                func.count(Movie.id).label("total_movies"),
+                func.avg(Movie.rating).label("average_rating"),
+                func.min(Movie.year).label("min_year"),
+                func.max(Movie.year).label("max_year"),
+                func.count(Movie.rating).label("rated_count")
+            ).filter(Movie.session_id == session_id).first()
             return {
                 "total_movies": result.total_movies or 0,
                 "average_rating": round(result.average_rating, 2) if result.average_rating else None,
