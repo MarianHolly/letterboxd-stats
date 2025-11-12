@@ -86,11 +86,16 @@ async def upload_csv(files: List[UploadFile] = File(...), db: Session = Depends(
         # Store movies
         if movies_to_store:
             storage.store_movies(session_id, movies_to_store)
+            # Set status to 'enriching' to signal background worker to start enrichment
+            # Background worker will update to 'completed' when finished
             storage.update_session_status(session_id, "enriching")
+        else:
+            # No movies stored, mark as completed immediately
+            storage.update_session_status(session_id, "completed")
 
         # Get session
         session = storage.get_session(session_id)
-        
+
         return UploadResponse(
             session_id=session.id,
             status=session.status,

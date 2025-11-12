@@ -88,5 +88,5 @@ def get_session_details(session_id: str, db: Session = Depends(get_db)):
         enriched_count=session.enriched_count,
         created_at=session.created_at,
         expires_at=session.expires_at,
-        metadata=session.metadata
+        metadata=session.upload_metadata
     )
