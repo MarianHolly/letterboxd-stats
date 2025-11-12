@@ -13,6 +13,7 @@ import {
   Upload,
   Settings,
   PencilIcon,
+  LogOut,
 } from "lucide-react";
 
 import {
@@ -25,6 +26,9 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
+
+import { Button } from "@/components/ui/button";
+import { useUploadStore } from "@/hooks/use-upload-store";
 
 export interface NavItem {
   title: string;
@@ -118,6 +122,7 @@ export function AnalyticsSidebar({
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("");
+  const clearFiles = useUploadStore((state) => state.clearFiles);
 
   // Detect which section is currently in view using Intersection Observer
   React.useEffect(() => {
@@ -304,6 +309,16 @@ export function AnalyticsSidebar({
             </div>
           </SidebarGroup>
         ))}
+        <div className="pt-2 mt-2 border-t border-gray-200 dark:border-white/10">
+          <Button
+            onClick={clearFiles}
+            variant="ghost"
+            className="w-full justify-start text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Clear Data
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
