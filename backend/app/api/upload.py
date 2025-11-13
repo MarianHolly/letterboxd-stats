@@ -1,16 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
-from typing import List
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session
+from io import BytesIO
 
 from app.db.session import get_db
 from app.services.csv_parser import LetterboxdParser
 from app.services.storage import StorageService
-from app.schemas.upload import UploadResponse
 
 router = APIRouter()
 
-@router.post("/upload", response_model=UploadResponse, status_code=201)
-async def upload_csv(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
+@router.post("/upload", status_code=201)
+async def upload_csv(files: List[UploadFile] = File(...), db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Upload CSV files and create session."""
     
     # Validate files provided
@@ -41,15 +41,18 @@ async def upload_csv(files: List[UploadFile] = File(...), db: Session = Depends(
             content = await file.read()
             filename = file.filename.lower()
 
+            # Convert bytes to BytesIO object for parser
+            file_obj = BytesIO(content)
+
             # Detect file type
             if "watched" in filename:
-                parsed = parser.parse_watched(content)
+                parsed = parser.parse_watched(file_obj)
             elif "ratings" in filename:
-                parsed = parser.parse_ratings(content)
+                parsed = parser.parse_ratings(file_obj)
             elif "diary" in filename:
-                parsed = parser.parse_diary(content)
+                parsed = parser.parse_diary(file_obj)
             elif "likes" in filename:
-                parsed = parser.parse_likes(content)
+                parsed = parser.parse_likes(file_obj)
             else:
                 parsed = {}
 
@@ -96,12 +99,13 @@ async def upload_csv(files: List[UploadFile] = File(...), db: Session = Depends(
         # Get session
         session = storage.get_session(session_id)
 
-        return UploadResponse(
-            session_id=session.id,
-            status=session.status,
-            total_movies=session.total_movies,
-            created_at=session.created_at
-        )
+        # Return response as dict with UUID converted to string
+        return {
+            "session_id": str(session.id),
+            "status": session.status,
+            "total_movies": session.total_movies,
+            "created_at": session.created_at
+        }
 
     except HTTPException:
         raise
