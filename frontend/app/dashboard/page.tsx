@@ -41,23 +41,57 @@ export default function DashboardPage() {
 
   const handleUploadComplete = async (uploadedFiles: UploadedFile[]) => {
     try {
-      for (const file of uploadedFiles) {
-        if (file.status === "success" && file.type !== "unknown") {
-          const csvContent = await file.file.text();
-          addFile({
-            id: `${Date.now()}_${Math.random()}`,
-            name: file.file.name,
-            size: file.file.size,
-            type: file.type,
-            data: csvContent,
-            uploadedAt: Date.now(),
-          });
-        }
+      // Prepare FormData for multipart upload
+      const formData = new FormData();
+      const validFiles = uploadedFiles.filter(
+        (f) => f.status === "success" && f.type !== "unknown"
+      );
+
+      if (validFiles.length === 0) {
+        alert("No valid files to upload");
+        return;
       }
+
+      // Add files to FormData
+      for (const uploadedFile of validFiles) {
+        formData.append("files", uploadedFile.file);
+      }
+
+      // Send to backend API
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/api/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Upload failed");
+      }
+
+      const data = await response.json();
+      const sessionId = data.session_id;
+
+      // Store the real session ID from backend
+      useUploadStore.setState({ sessionId });
+
+      // Also store files locally for offline access
+      for (const file of validFiles) {
+        const csvContent = await file.file.text();
+        addFile({
+          id: `${Date.now()}_${Math.random()}`,
+          name: file.file.name,
+          size: file.file.size,
+          type: file.type,
+          data: csvContent,
+          uploadedAt: Date.now(),
+        });
+      }
+
       setIsUploadModalOpen(false);
     } catch (error) {
-      console.error("Error processing files:", error);
-      alert("Error processing files. Please try again.");
+      console.error("Error uploading files:", error);
+      alert(`Error uploading files: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
