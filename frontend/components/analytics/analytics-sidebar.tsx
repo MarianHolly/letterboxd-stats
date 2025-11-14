@@ -14,6 +14,7 @@ import {
   Settings,
   PencilIcon,
   LogOut,
+  Home,
 } from "lucide-react";
 
 import {
@@ -340,7 +341,7 @@ export function AnalyticsSidebar({
             </div>
           </SidebarGroup>
         ))}
-        <div className="pt-2 mt-2 border-t border-gray-200 dark:border-white/10">
+        <div className="pt-2 mt-2 border-t border-gray-200 dark:border-white/10 space-y-1">
           <Button
             onClick={clearFiles}
             variant="ghost"
@@ -349,6 +350,16 @@ export function AnalyticsSidebar({
             <LogOut className="w-4 h-4 mr-2" />
             Clear Data
           </Button>
+          <Link
+            href="/"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left",
+              "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
+            )}
+          >
+            <Home className="w-4 h-4" />
+            <span className="font-medium text-sm truncate">Go to Home</span>
+          </Link>
         </div>
       </SidebarFooter>
     </Sidebar>
