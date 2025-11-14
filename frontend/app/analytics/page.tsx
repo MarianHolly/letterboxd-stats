@@ -13,6 +13,7 @@ import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year
 import { DiaryAreaChart } from "@/components/analytics/charts/diary-area-chart";
 import { DiaryStatistics } from "@/components/analytics/charts/diary-statistics";
 import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
+import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state";
 
 interface UploadedFile {
   file: File;
@@ -90,6 +91,9 @@ export default function AnalyticsPage() {
     }
   };
 
+  // Check if we have any data
+  const hasData = enrichedData && enrichedData.length > 0;
+
   return (
     <SidebarProvider>
       <AnalyticsSidebar onUploadClick={() => setIsUploadModalOpen(true)} />
@@ -100,6 +104,9 @@ export default function AnalyticsPage() {
             description="Discover and explore your personality through Letterboxd statistics"
           />
 
+          {!hasData ? (
+            <AnalyticsEmptyState onUploadClick={() => setIsUploadModalOpen(true)} />
+          ) : (
           <main className="flex-1 overflow-auto scroll-smooth">
             <div className="flex flex-1 flex-col gap-8 pt-8 px-8 pb-8 max-w-7xl mx-auto w-full">
               {/* Overview Section */}
@@ -221,6 +228,7 @@ export default function AnalyticsPage() {
               </section>
             </div>
           </main>
+          )}
         </div>
         {/* Upload Modal */}
         <UploadModal
