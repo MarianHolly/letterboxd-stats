@@ -13,7 +13,7 @@ export interface UploadedFile {
 export interface UploadStore {
   // State
   files: UploadedFile[];
-  sessionId: string;
+  sessionId: string | null;
 
   // Actions
   addFile: (file: UploadedFile) => void;
@@ -24,17 +24,12 @@ export interface UploadStore {
   hasWatchedFile: () => boolean;
 }
 
-// Generate a unique session ID
-const generateSessionId = () => {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-};
-
 export const useUploadStore = create<UploadStore>()(
   persist(
     (set, get) => ({
       // Initial state
       files: [],
-      sessionId: generateSessionId(),
+      sessionId: null,
 
       // Actions
       addFile: (file: UploadedFile) =>
@@ -50,7 +45,7 @@ export const useUploadStore = create<UploadStore>()(
       clearFiles: () =>
         set({
           files: [],
-          sessionId: generateSessionId(),
+          sessionId: null,
         }),
 
       getFile: (id: string) => {
@@ -70,8 +65,19 @@ export const useUploadStore = create<UploadStore>()(
     }),
     {
       name: "letterboxd-upload-store",
-      // Don't persist session data between browser sessions
-      version: 1,
+      version: 2,
+      // Automatically clear storage when version changes
+      // This helps reset stale data from old store versions
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0 || version === 1) {
+          // Reset sessionId for old versions to prevent polling phantom sessions
+          return {
+            files: persistedState.files || [],
+            sessionId: null,
+          };
+        }
+        return persistedState;
+      },
     }
   )
 );

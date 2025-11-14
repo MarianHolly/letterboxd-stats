@@ -1,19 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar";
-import { AnalyticsHeader } from "@/components/analytics/analytics-header";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { UploadModal } from "@/components/landing/upload-modal";
 
+// Hooks
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useUploadStore } from "@/hooks/use-upload-store";
 import { useEnrichedDataFromStore } from "@/src/hooks/use-enriched-data";
+
+// Components
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AnalyticsHeader } from "@/components/analytics/analytics-header";
+import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar";
+import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state";
+
+import { UploadModal } from "@/components/landing/upload-modal";
+import { EnrichmentProgress } from "@/components/dashboard/enrichment-progress";
+
+// Stats
 import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis";
+import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
 import { DiaryAreaChart } from "@/components/analytics/charts/diary-area-chart";
 import { DiaryStatistics } from "@/components/analytics/charts/diary-statistics";
-import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
-import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state";
 
 interface UploadedFile {
   file: File;
@@ -25,9 +32,11 @@ interface UploadedFile {
 
 export default function AnalyticsPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [enrichmentKey, setEnrichmentKey] = useState(0); // Force refresh when enrichment completes
 
   const { enrichedData } = useEnrichedDataFromStore();
   const analytics = useAnalytics(enrichedData);
+  const sessionId = useUploadStore((state) => state.sessionId);
 
   const addFile = useUploadStore((state) => state.addFile);
   const clearFiles = useUploadStore((state) => state.clearFiles);
@@ -92,7 +101,7 @@ export default function AnalyticsPage() {
   };
 
   // Check if we have any data
-  const hasData = enrichedData && enrichedData.length > 0;
+  const hasData = enrichedData && enrichedData.movies && enrichedData.movies.size > 0;
 
   return (
     <SidebarProvider>
@@ -103,6 +112,17 @@ export default function AnalyticsPage() {
             title="Your true cinematic identity"
             description="Discover and explore your personality through Letterboxd statistics"
           />
+
+          {/* Enrichment Progress Bar - Only shown during active enrichment */}
+          {sessionId && !hasData && (
+            <div className="px-8 pt-4 pb-2">
+              <EnrichmentProgress
+                key={enrichmentKey}
+                sessionId={sessionId}
+                onComplete={() => setEnrichmentKey(prev => prev + 1)}
+              />
+            </div>
+          )}
 
           {!hasData ? (
             <AnalyticsEmptyState onUploadClick={() => setIsUploadModalOpen(true)} />

@@ -27,6 +27,7 @@ export function EnrichmentProgress({
   const [status, setStatus] = useState<EnrichmentStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shouldStopPolling, setShouldStopPolling] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -36,11 +37,19 @@ export function EnrichmentProgress({
         setIsLoading(true);
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         const response = await fetch(
-          `${apiUrl}/api/session/${sessionId}/status`
+          `${apiUrl}/api/session/${sessionId}/status`,
+          { signal: AbortSignal.timeout(5000) }
         );
 
+        if (response.status === 404) {
+          // Session not found - stop polling
+          setShouldStopPolling(true);
+          setError("Session not found or has expired");
+          return;
+        }
+
         if (!response.ok) {
-          throw new Error("Failed to fetch enrichment status");
+          throw new Error(`HTTP ${response.status}: Failed to fetch enrichment status`);
         }
 
         const data = await response.json();
@@ -66,23 +75,32 @@ export function EnrichmentProgress({
           onComplete
         ) {
           onComplete();
+          setShouldStopPolling(true);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch status");
+        // Only set error on first fetch or network errors
+        if (!status) {
+          const errorMsg = err instanceof Error ? err.message : "Failed to fetch status";
+          setError(errorMsg);
+        }
+        // Stop polling if we get consistent errors (backend down, network issues)
+        setShouldStopPolling(true);
       } finally {
         setIsLoading(false);
       }
     };
 
+    if (shouldStopPolling) return;
+
     // Fetch immediately
     fetchStatus();
 
-    // Poll at interval (but stop if completed)
-    if (status?.status !== "completed") {
+    // Poll at interval (but stop if completed or error)
+    if (status?.status !== "completed" && !shouldStopPolling) {
       const interval = setInterval(fetchStatus, pollInterval);
       return () => clearInterval(interval);
     }
-  }, [sessionId, pollInterval, status?.status, onComplete]);
+  }, [sessionId, pollInterval, status?.status, onComplete, shouldStopPolling]);
 
   if (!sessionId) {
     return null;
