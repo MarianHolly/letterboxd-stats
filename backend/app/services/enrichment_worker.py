@@ -165,15 +165,18 @@ class EnrichmentWorker:
             for session in sessions:
                 try:
                     # Create a fresh event loop for this session
+                    logger.info(f"Session {session.id}: Starting async enrichment (creating event loop)")
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:
                         # Run async enrichment for this session
+                        # Note: Don't pass storage from main thread - async tasks will create their own
                         loop.run_until_complete(
-                            self.enrich_session_async(session.id, storage)
+                            self.enrich_session_async(session.id, None)
                         )
                     finally:
                         loop.close()
+                        logger.info(f"Session {session.id}: Event loop closed")
 
                 except Exception as e:
                     # Log error but continue with next session
@@ -281,7 +284,7 @@ class EnrichmentWorker:
 
     # ========== ASYNC METHODS (for concurrent enrichment) ==========
 
-    async def enrich_session_async(self, session_id: str, storage: "StorageService") -> None:
+    async def enrich_session_async(self, session_id: str, storage: Optional["StorageService"]) -> None:
         """Async enrich all unenriched movies in a session (10 concurrent).
 
         This method processes movies in parallel batches of 10, dramatically improving
@@ -289,26 +292,39 @@ class EnrichmentWorker:
 
         Args:
             session_id: UUID of the session to enrich
-            storage: StorageService instance to use for this session
+            storage: Unused (for compatibility), each async task creates its own session
 
         Process:
-        1. Get all unenriched movies for the session
+        1. Get all unenriched movies for the session (from thread pool)
         2. Process in batches of 10 using asyncio.gather()
-        3. For each batch, enrich movies concurrently
-        4. Update progress after each batch
-        5. Mark session complete when done
+        3. For each batch, enrich movies concurrently (async TMDB + thread pool DB)
+        4. Update progress after each batch (in thread pool)
+        5. Mark session complete when done (in thread pool)
 
         Error Handling:
         - Individual movie errors are caught and logged but don't stop other movies
         - return_exceptions=True ensures all movies are attempted even if some fail
+
+        Thread Management:
+        - Uses asyncio.to_thread() to fetch movies (avoids blocking event loop)
+        - Each async task creates its own database session in thread pool
         """
+        logger.info(f"[ASYNC] Session {session_id}: Entering async enrichment method")
         try:
-            # Get all movies that need enrichment
-            unenriched_movies = storage.get_unenriched_movies(session_id)
+            # Get all movies that need enrichment (in thread pool)
+            unenriched_movies = await asyncio.to_thread(
+                self._get_unenriched_movies,
+                session_id
+            )
+            logger.info(f"[ASYNC] Session {session_id}: Found {len(unenriched_movies)} unenriched movies")
 
             if not unenriched_movies:
                 logger.info(f"Session {session_id}: No unenriched movies, marking complete")
-                storage.update_session_status(session_id, "completed")
+                await asyncio.to_thread(
+                    self._update_session_status,
+                    session_id,
+                    "completed"
+                )
                 return
 
             logger.info(
@@ -329,7 +345,7 @@ class EnrichmentWorker:
 
                 # Create async tasks for all movies in batch
                 tasks = [
-                    self._enrich_movie_async(movie, storage, session_id)
+                    self._enrich_movie_async(movie, session_id)
                     for movie in batch
                 ]
 
@@ -337,8 +353,12 @@ class EnrichmentWorker:
                 # return_exceptions=True ensures we continue even if some fail
                 await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Mark session as complete
-            storage.update_session_status(session_id, "completed")
+            # Mark session as complete (in thread pool)
+            await asyncio.to_thread(
+                self._update_session_status,
+                session_id,
+                "completed"
+            )
             logger.info(f"Session {session_id}: Async enrichment complete")
 
         except Exception as e:
@@ -350,33 +370,39 @@ class EnrichmentWorker:
     async def _enrich_movie_async(
         self,
         movie,
-        storage: "StorageService",
         session_id: str
     ) -> None:
         """Async enrich a single movie (called concurrently in batches).
 
         Args:
             movie: Movie object with title and year
-            storage: StorageService to save enrichment data
-            session_id: For logging progress
+            session_id: Session ID for logging progress
 
         This method:
-        1. Calls the async TMDB client to enrich the movie
-        2. Saves enrichment data if successful
-        3. Always updates progress counter
+        1. Calls the async TMDB client to enrich the movie (async, concurrent)
+        2. Updates database with enrichment data (sync, in thread pool to avoid blocking event loop)
+        3. Always updates progress counter (sync, in thread pool)
         4. Catches exceptions to prevent one failure from affecting others
+
+        Note: Database calls are wrapped in asyncio.to_thread() with fresh session management
+        to avoid SQLAlchemy thread-local session conflicts. Each thread pool task creates
+        its own database session, ensuring proper transaction isolation.
         """
+        enrichment_data = None
+
         try:
-            # Get TMDB enrichment data (async)
+            # Step 1: Get TMDB enrichment data (async, non-blocking, concurrent)
             enrichment_data = await self.tmdb_client.enrich_movie_async(
                 title=movie.title,
                 year=movie.year
             )
 
             if enrichment_data:
-                storage.update_movie_enrichment(
-                    movie_id=movie.id,
-                    tmdb_data=enrichment_data
+                # Step 2: Save enrichment data in thread pool (atomic DB operation)
+                await asyncio.to_thread(
+                    self._save_movie_enrichment,
+                    movie.id,
+                    enrichment_data
                 )
                 logger.debug(
                     f"Enriched async: {movie.title} "
@@ -389,11 +415,73 @@ class EnrichmentWorker:
             logger.error(f"Error enriching movie {movie.title}: {str(e)}")
 
         finally:
-            # Always update progress
+            # Step 3: Always update progress counter in thread pool (atomic DB operation)
             try:
-                storage.increment_enriched_count(session_id)
+                await asyncio.to_thread(
+                    self._increment_progress,
+                    session_id
+                )
             except Exception as e:
                 logger.error(f"Error updating progress: {str(e)}")
+
+    def _save_movie_enrichment(self, movie_id: str, enrichment_data: dict) -> None:
+        """Save movie enrichment data (runs in thread pool).
+
+        This method creates its own database session to avoid conflicts
+        with the main thread's session management.
+        """
+        from app.db.session import SessionLocal
+        from app.services.storage import StorageService
+
+        db = SessionLocal()
+        try:
+            storage = StorageService(db)
+            storage.update_movie_enrichment(
+                movie_id=movie_id,
+                tmdb_data=enrichment_data
+            )
+        finally:
+            db.close()
+
+    def _increment_progress(self, session_id: str) -> None:
+        """Increment progress counter (runs in thread pool).
+
+        This method creates its own database session to avoid conflicts
+        with the main thread's session management.
+        """
+        from app.db.session import SessionLocal
+        from app.services.storage import StorageService
+
+        db = SessionLocal()
+        try:
+            storage = StorageService(db)
+            storage.increment_enriched_count(session_id)
+        finally:
+            db.close()
+
+    def _get_unenriched_movies(self, session_id: str):
+        """Get unenriched movies for a session (runs in thread pool)."""
+        from app.db.session import SessionLocal
+        from app.services.storage import StorageService
+
+        db = SessionLocal()
+        try:
+            storage = StorageService(db)
+            return storage.get_unenriched_movies(session_id)
+        finally:
+            db.close()
+
+    def _update_session_status(self, session_id: str, status: str) -> None:
+        """Update session status (runs in thread pool)."""
+        from app.db.session import SessionLocal
+        from app.services.storage import StorageService
+
+        db = SessionLocal()
+        try:
+            storage = StorageService(db)
+            storage.update_session_status(session_id, status)
+        finally:
+            db.close()
 
     # ========== END ASYNC METHODS ==========
 
