@@ -42,11 +42,15 @@ export default function AnalyticsPage() {
 
   const handleUploadComplete = async (uploadedFiles: UploadedFile[]) => {
     try {
+      console.log("[Analytics Upload] Starting upload with files:", uploadedFiles);
+
       // Prepare FormData for multipart upload
       const formData = new FormData();
       const validFiles = uploadedFiles.filter(
         (f) => f.status === "success" && f.type !== "unknown"
       );
+
+      console.log("[Analytics Upload] Valid files:", validFiles);
 
       if (validFiles.length === 0) {
         alert("No valid files to upload");
@@ -60,10 +64,14 @@ export default function AnalyticsPage() {
 
       // Send to backend API
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      console.log("[Analytics Upload] Sending to:", `${apiUrl}/api/upload`);
+
       const response = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
         body: formData,
       });
+
+      console.log("[Analytics Upload] Response status:", response.status);
 
       if (!response.ok) {
         const error = await response.json();
@@ -73,6 +81,8 @@ export default function AnalyticsPage() {
       const data = await response.json();
       const sessionId = data.session_id;
 
+      console.log("[Analytics Upload] Session ID received:", sessionId);
+
       // Store the real session ID from backend
       useUploadStore.setState({ sessionId });
 
@@ -80,9 +90,10 @@ export default function AnalyticsPage() {
       // Files are now only in backend database, we'll fetch enriched data via API
       clearFiles();
 
+      console.log("[Analytics Upload] Upload complete, closing modal");
       setIsUploadModalOpen(false);
     } catch (error) {
-      console.error("Error uploading files:", error);
+      console.error("[Analytics Upload] Error:", error);
       alert(`Error uploading files: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };

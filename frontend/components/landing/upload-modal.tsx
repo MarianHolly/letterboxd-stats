@@ -52,6 +52,14 @@ export function UploadModal({
 }: UploadModalProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
+  // Reset files when modal closes
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      setUploadedFiles([]);
+    }
+    onOpenChange(newOpen);
+  };
+
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       const newFiles = acceptedFiles.map((file) => {
@@ -128,7 +136,7 @@ export function UploadModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl bg-slate-950 border border-white/10">
         <DialogHeader>
           <DialogTitle className="text-2xl text-white">
