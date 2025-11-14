@@ -193,6 +193,8 @@ class Movie(Base):
     revenue = Column(Integer, nullable=True)  # Box office revenue
     popularity = Column(Float, nullable=True)  # TMDB popularity score
     vote_average = Column(Float, nullable=True)  # TMDB vote average (0-10)
+    country = Column(String(100), nullable=True)  # Primary production country
+    original_language = Column(String(10), nullable=True)  # Original language code
 
     # ========== Tracking Fields ==========
 

@@ -13,7 +13,7 @@ from app.services.storage import StorageService
 from app.services.enrichment_worker import EnrichmentWorker
 
 # API routes
-from app.api import upload, session
+from app.api import upload, session, test
 
 # Load environment variables
 load_dotenv()
@@ -27,7 +27,11 @@ app = FastAPI(title="Letterboxd Stats API", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",  # Test page runs on 3001
+        "http://localhost:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,14 +75,16 @@ async def startup_event():
 
     try:
         # Initialize enrichment worker
-        db = SessionLocal()
-        storage = StorageService(db)
-        enrichment_worker = EnrichmentWorker(tmdb_client, storage)
+        # Pass SessionLocal factory instead of a single session instance
+        # This allows the worker to create fresh sessions for each polling cycle
+        logger.info("Creating EnrichmentWorker...")
+        enrichment_worker = EnrichmentWorker(tmdb_client, SessionLocal)
+        logger.info("Starting enrichment scheduler...")
         enrichment_worker.start_scheduler()
         logger.info("[OK] Enrichment Worker started")
 
     except Exception as e:
-        logger.error(f"[ERROR] Enrichment Worker initialization failed: {str(e)}")
+        logger.error(f"[ERROR] Enrichment Worker initialization failed: {str(e)}", exc_info=True)
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -109,6 +115,7 @@ async def root():
 # Include routers
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(session.router, prefix="/api", tags=["session"])
+app.include_router(test.router, prefix="/api", tags=["test"])
 
 # Health check
 @app.get("/health")

@@ -1,23 +1,108 @@
 "use client";
 
-import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar";
-import { AnalyticsHeader } from "@/components/analytics/analytics-header";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { useState } from "react";
 
+// Hooks
 import { useAnalytics } from "@/hooks/use-analytics";
-import { useEnrichedDataFromStore } from "@/src/hooks/use-enriched-data";
+import { useUploadStore } from "@/hooks/use-upload-store";
+import { useEnrichedDataFromSession } from "@/src/hooks/use-enriched-data-from-session";
+
+// Components
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AnalyticsHeader } from "@/components/analytics/analytics-header";
+import { AnalyticsSidebar } from "@/components/analytics/analytics-sidebar";
+import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state";
+
+import { UploadModal } from "@/components/landing/upload-modal";
+import { EnrichmentProgress } from "@/components/dashboard/enrichment-progress";
+
+// Stats
 import { ReleasedYearAnalysis } from "@/components/analytics/charts/release-year-analysis";
+import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
 import { DiaryAreaChart } from "@/components/analytics/charts/diary-area-chart";
 import { DiaryStatistics } from "@/components/analytics/charts/diary-statistics";
-import { DiaryMonthlyRadarChart } from "@/components/analytics/charts/diary-monthly-radar-chart";
+
+interface UploadedFile {
+  file: File;
+  type: "watched" | "ratings" | "diary" | "unknown";
+  status: "uploading" | "success" | "error";
+  progress: number;
+  error?: string;
+}
 
 export default function AnalyticsPage() {
-  const { enrichedData } = useEnrichedDataFromStore();
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Force refresh when enrichment completes
+
+  const sessionId = useUploadStore((state) => state.sessionId);
+  const { enrichedData } = useEnrichedDataFromSession(sessionId);
   const analytics = useAnalytics(enrichedData);
+
+
+  const handleUploadComplete = async (uploadedFiles: UploadedFile[]) => {
+    try {
+      console.log("[Analytics Upload] Starting upload with files:", uploadedFiles);
+
+      // Prepare FormData for multipart upload
+      const formData = new FormData();
+      const validFiles = uploadedFiles.filter(
+        (f) => f.status === "success" && f.type !== "unknown"
+      );
+
+      console.log("[Analytics Upload] Valid files:", validFiles);
+
+      if (validFiles.length === 0) {
+        alert("No valid files to upload");
+        return;
+      }
+
+      // Add files to FormData
+      for (const uploadedFile of validFiles) {
+        formData.append("files", uploadedFile.file);
+      }
+
+      // Send to backend API
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      console.log("[Analytics Upload] Sending to:", `${apiUrl}/api/upload`);
+
+      const response = await fetch(`${apiUrl}/api/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log("[Analytics Upload] Response status:", response.status);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Upload failed");
+      }
+
+      const data = await response.json();
+      const sessionId = data.session_id;
+
+      console.log("[Analytics Upload] Session ID received:", sessionId);
+
+      // Clear old files (but NOT sessionId!)
+      // Files are now only in backend database, we'll fetch enriched data via API
+      useUploadStore.setState({
+        files: [],
+        sessionId: sessionId  // Keep the new session ID!
+      });
+
+      console.log("[Analytics Upload] Upload complete, closing modal");
+      setIsUploadModalOpen(false);
+    } catch (error) {
+      console.error("[Analytics Upload] Error:", error);
+      alert(`Error uploading files: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+
+  // Check if we have any data
+  const hasData = enrichedData && enrichedData.movies && enrichedData.movies.size > 0;
 
   return (
     <SidebarProvider>
-      <AnalyticsSidebar />
+      <AnalyticsSidebar onUploadClick={() => setIsUploadModalOpen(true)} />
       <SidebarInset>
         <div className="flex flex-col h-screen bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 scroll-smooth">
           <AnalyticsHeader
@@ -25,6 +110,20 @@ export default function AnalyticsPage() {
             description="Discover and explore your personality through Letterboxd statistics"
           />
 
+          {/* Enrichment Progress Bar - Only shown during active enrichment */}
+          {sessionId && !hasData && (
+            <div className="px-8 pt-4 pb-2">
+              <EnrichmentProgress
+                key={refreshKey}
+                sessionId={sessionId}
+                onComplete={() => setRefreshKey(prev => prev + 1)}
+              />
+            </div>
+          )}
+
+          {!hasData ? (
+            <AnalyticsEmptyState onUploadClick={() => setIsUploadModalOpen(true)} />
+          ) : (
           <main className="flex-1 overflow-auto scroll-smooth">
             <div className="flex flex-1 flex-col gap-8 pt-8 px-8 pb-8 max-w-7xl mx-auto w-full">
               {/* Overview Section */}
@@ -146,7 +245,14 @@ export default function AnalyticsPage() {
               </section>
             </div>
           </main>
+          )}
         </div>
+        {/* Upload Modal */}
+        <UploadModal
+          open={isUploadModalOpen}
+          onOpenChange={setIsUploadModalOpen}
+          onUploadComplete={handleUploadComplete}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

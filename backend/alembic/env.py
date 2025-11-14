@@ -15,7 +15,13 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Add backend directory to Python path so we can import app module
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
 
 # Load environment variables
 load_dotenv()

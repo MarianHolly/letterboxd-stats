@@ -15,21 +15,31 @@ router = APIRouter()
 @router.get("/session/{session_id}/status", response_model=SessionStatusResponse)
 def get_session_status(session_id: str, db: Session = Depends(get_db)):
     """Check session processing status."""
-    storage = StorageService(db)
-    session = storage.get_session(session_id)
+    try:
+        storage = StorageService(db)
+        session = storage.get_session(session_id)
 
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found or expired")
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found or expired")
 
-    return SessionStatusResponse(
-        session_id=session.id,
-        status=session.status,
-        total_movies=session.total_movies,
-        enriched_count=session.enriched_count,
-        created_at=session.created_at,
-        expires_at=session.expires_at,
-        error_message=None
-    )
+        return SessionStatusResponse(
+            session_id=str(session.id),
+            status=session.status,
+            total_movies=session.total_movies,
+            enriched_count=session.enriched_count,
+            created_at=session.created_at,
+            expires_at=session.expires_at,
+            error_message=None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"Error fetching session status for {session_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching session status: {str(e)}"
+        )
 
 @router.get("/session/{session_id}/movies", response_model=MoviesListResponse)
 def get_session_movies(
@@ -39,54 +49,74 @@ def get_session_movies(
     db: Session = Depends(get_db)
 ):
     """Retrieve movies for a session."""
-    storage = StorageService(db)
-    
-    if not storage.session_exists(session_id):
-        raise HTTPException(status_code=404, detail="Session not found or expired")
+    try:
+        storage = StorageService(db)
 
-    offset = (page - 1) * per_page
-    movies, total = storage.get_movies(session_id, limit=per_page, offset=offset)
+        if not storage.session_exists(session_id):
+            raise HTTPException(status_code=404, detail="Session not found or expired")
 
-    movie_responses = [
-        MovieResponse(
-            title=m.title,
-            year=m.year,
-            rating=m.rating,
-            watched_date=m.watched_date,
-            rewatch=m.rewatch,
-            tags=m.tags or [],
-            review=m.review,
-            letterboxd_uri=m.letterboxd_uri,
-            genres=m.genres,
-            directors=m.directors,
-            cast=m.cast,
-            runtime=m.runtime
+        offset = (page - 1) * per_page
+        movies, total = storage.get_movies(session_id, limit=per_page, offset=offset)
+
+        movie_responses = [
+            MovieResponse(
+                title=m.title,
+                year=m.year,
+                rating=m.rating,
+                watched_date=m.watched_date,
+                rewatch=m.rewatch,
+                tags=m.tags or [],
+                review=m.review,
+                letterboxd_uri=m.letterboxd_uri,
+                genres=m.genres,
+                directors=m.directors,
+                cast=m.cast,
+                runtime=m.runtime
+            )
+            for m in movies
+        ]
+
+        return MoviesListResponse(
+            movies=movie_responses,
+            total=total,
+            page=page,
+            per_page=per_page
         )
-        for m in movies
-    ]
-
-    return MoviesListResponse(
-        movies=movie_responses,
-        total=total,
-        page=page,
-        per_page=per_page
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"Error fetching movies for session {session_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching movies: {str(e)}"
+        )
 
 @router.get("/session/{session_id}", response_model=SessionDetailsResponse)
 def get_session_details(session_id: str, db: Session = Depends(get_db)):
     """Get full session details."""
-    storage = StorageService(db)
-    session = storage.get_session(session_id)
+    try:
+        storage = StorageService(db)
+        session = storage.get_session(session_id)
 
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found or expired")
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found or expired")
 
-    return SessionDetailsResponse(
-        session_id=session.id,
-        status=session.status,
-        total_movies=session.total_movies,
-        enriched_count=session.enriched_count,
-        created_at=session.created_at,
-        expires_at=session.expires_at,
-        metadata=session.upload_metadata
-    )
+        return SessionDetailsResponse(
+            session_id=str(session.id),
+            status=session.status,
+            total_movies=session.total_movies,
+            enriched_count=session.enriched_count,
+            created_at=session.created_at,
+            expires_at=session.expires_at,
+            metadata=session.upload_metadata
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"Error fetching session details for {session_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching session details: {str(e)}"
+        )

@@ -92,15 +92,34 @@ def get_db() -> Session:
 
 def init_db():
     """
-    Initialize database by creating all tables
+    Initialize database by running Alembic migrations
 
-    Call this once on startup to create schema if it doesn't exist.
-    For production, use Alembic migrations instead.
+    Call this once on startup to create/update schema.
+    Alembic ensures proper version control of database changes.
     """
-    from app.models.database import Base
+    try:
+        from alembic.config import Config
+        from alembic import command
+        import os
 
-    Base.metadata.create_all(bind=engine)
-    print("[OK] Database tables created (if they didn't exist)")
+        # Get the backend directory path
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alembic_cfg_path = os.path.join(backend_dir, '..', 'alembic.ini')
+
+        # Initialize Alembic config
+        alembic_cfg = Config(alembic_cfg_path)
+
+        # Run migrations to the latest version
+        command.upgrade(alembic_cfg, "head")
+        print("[OK] Database migrations applied successfully")
+    except Exception as e:
+        print(f"[WARNING] Could not run Alembic migrations: {str(e)}")
+        print("[FALLBACK] Attempting to create tables using SQLAlchemy models...")
+
+        # Fallback to create_all if Alembic fails
+        from app.models.database import Base
+        Base.metadata.create_all(bind=engine)
+        print("[OK] Database tables created (fallback method)")
 
 
 def close_db():

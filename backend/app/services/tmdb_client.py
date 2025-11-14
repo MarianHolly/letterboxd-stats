@@ -6,6 +6,7 @@ It handles:
 - Fetching detailed movie information
 - Error handling and rate limiting
 - Optional in-memory caching
+- Async concurrent requests with aiohttp
 
 TMDB API Documentation: https://developer.themoviedb.org/docs
 Free tier limits: 40 requests per 10 seconds
@@ -13,9 +14,11 @@ Free tier limits: 40 requests per 10 seconds
 
 import requests
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
 import time
+import asyncio
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,10 @@ class TMDBClient:
 
         # Rate limiting tracking
         self._request_times: List[float] = []
+
+        # Async rate limiting: limit to 10 concurrent requests (TMDB allows 40 per 10s)
+        # We use 10 to be conservative and avoid rate limiting issues
+        self._rate_limiter: Optional[asyncio.Semaphore] = None
 
         logger.info("TMDB Client initialized successfully")
 
@@ -342,7 +349,11 @@ class TMDBClient:
                 'budget': movie_details.get('budget'),
                 'revenue': movie_details.get('revenue'),
                 'popularity': movie_details.get('popularity'),
-                'vote_average': movie_details.get('vote_average')
+                'vote_average': movie_details.get('vote_average'),
+                'original_language': movie_details.get('original_language'), 
+                'country': self._extract_country(                              
+                    movie_details.get('production_countries', [])
+                )
             }
 
             # Filter out None values and empty lists
@@ -378,6 +389,30 @@ class TMDBClient:
             if person.get('name')
         ]
         return actors[:5] if actors else []  # Limit to top 5 cast members
+    
+    def _extract_country(self, production_countries: List[Dict]) -> Optional[str]:
+        """Extract country name from production countries list.
+
+        Args:
+            production_countries: List of country dicts from TMDB
+
+        Returns:
+            Country name string or None
+
+        Example:
+            Input: [{'iso_3166_1': 'US', 'name': 'United States'}]
+            Output: 'United States'
+        """
+        if not production_countries:
+            return None
+
+        # Get first country (most common case)
+        country = production_countries[0].get('name')
+
+        if country:
+            return country.strip()
+
+        return None
 
     def enrich_movie(self, title: str, year: Optional[int] = None) -> Optional[Dict]:
         """
@@ -415,6 +450,195 @@ class TMDBClient:
 
         logger.info(f"Successfully enriched: {title} ({year}) → TMDB ID {tmdb_id}")
         return enrichment
+
+    # ========== ASYNC METHODS (for concurrent enrichment) ==========
+
+    async def _get_rate_limiter(self) -> asyncio.Semaphore:
+        """
+        Get or create the async rate limiter.
+
+        Creates a new semaphore if we're in a new event loop context.
+        """
+        try:
+            if self._rate_limiter is None:
+                self._rate_limiter = asyncio.Semaphore(10)
+            return self._rate_limiter
+        except RuntimeError:
+            # New event loop, create new semaphore
+            self._rate_limiter = asyncio.Semaphore(10)
+            return self._rate_limiter
+
+    async def search_movie_async(self, title: str, year: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Async search for a movie by title and optionally year.
+
+        Uses aiohttp for concurrent requests with proper rate limiting.
+
+        Args:
+            title: Movie title to search for
+            year: Optional release year (helps narrow results)
+
+        Returns:
+            Dict with search results or None if not found.
+        """
+        if not title or not isinstance(title, str):
+            logger.warning(f"Invalid title for async search: {title}")
+            return None
+
+        # Check cache first
+        cache_key = self._get_cache_key("search", title=title, year=year)
+        cached = self._get_from_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            rate_limiter = await self._get_rate_limiter()
+
+            async with rate_limiter:
+                async with aiohttp.ClientSession() as session:
+                    params = {
+                        "api_key": self.api_key,
+                        "query": title.strip(),
+                        "page": 1
+                    }
+
+                    if year and isinstance(year, int):
+                        params["year"] = year
+
+                    async with session.get(
+                        self.SEARCH_ENDPOINT,
+                        params=params,
+                        timeout=aiohttp.ClientTimeout(total=10)
+                    ) as resp:
+                        if resp.status == 200:
+                            response = await resp.json()
+                            # Cache the result
+                            self._set_cache(cache_key, response)
+                            logger.debug(f"Async search found: {title} ({year})")
+                            return response
+                        elif resp.status == 404:
+                            logger.debug(f"Async search not found: {title} ({year})")
+                            return None
+                        else:
+                            logger.warning(f"TMDB async search error {resp.status} for {title}")
+                            return None
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Async search timeout for {title}")
+            return None
+        except Exception as e:
+            logger.error(f"Error in async search for '{title}': {str(e)}")
+            return None
+
+    async def get_movie_details_async(self, tmdb_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Async fetch detailed movie information including genres, cast, and crew.
+
+        Uses aiohttp for concurrent requests with proper rate limiting.
+
+        Args:
+            tmdb_id: TMDB movie ID
+
+        Returns:
+            Dict with detailed movie info or None if not found.
+        """
+        if not isinstance(tmdb_id, int) or tmdb_id <= 0:
+            logger.warning(f"Invalid TMDB ID for async details: {tmdb_id}")
+            return None
+
+        # Check cache first
+        cache_key = self._get_cache_key("details", tmdb_id=tmdb_id)
+        cached = self._get_from_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            rate_limiter = await self._get_rate_limiter()
+
+            async with rate_limiter:
+                async with aiohttp.ClientSession() as session:
+                    url = f"{self.MOVIE_ENDPOINT}/{tmdb_id}"
+                    params = {
+                        "api_key": self.api_key,
+                        "append_to_response": "credits"
+                    }
+
+                    async with session.get(
+                        url,
+                        params=params,
+                        timeout=aiohttp.ClientTimeout(total=10)
+                    ) as resp:
+                        if resp.status == 200:
+                            response = await resp.json()
+                            # Cache the result
+                            self._set_cache(cache_key, response)
+                            logger.debug(f"Async details fetched for TMDB ID {tmdb_id}")
+                            return response
+                        elif resp.status == 404:
+                            logger.debug(f"Async details not found for TMDB ID {tmdb_id}")
+                            return None
+                        else:
+                            logger.warning(f"TMDB async details error {resp.status} for ID {tmdb_id}")
+                            return None
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Async details timeout for TMDB ID {tmdb_id}")
+            return None
+        except Exception as e:
+            logger.error(f"Error in async details for TMDB ID {tmdb_id}: {str(e)}")
+            return None
+
+    async def enrich_movie_async(self, title: str, year: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Async complete enrichment pipeline: search → fetch details → extract data.
+
+        This is the async entry point for movie enrichment, designed for concurrent use.
+
+        Args:
+            title: Movie title
+            year: Optional release year
+
+        Returns:
+            Enrichment data dict or None if failed.
+        """
+        # Step 1: Async search for movie
+        search_results = await self.search_movie_async(title, year)
+        if not search_results:
+            logger.debug(f"Async enrichment failed: movie not found '{title}' ({year})")
+            return None
+
+        results = search_results.get("results", [])
+        if not results:
+            logger.debug(f"Async enrichment: no results for '{title}' ({year})")
+            return None
+
+        # Get best match
+        best_match = self._find_best_match(results, title, year)
+        if not best_match:
+            logger.debug(f"Async enrichment: no suitable match for '{title}' ({year})")
+            return None
+
+        tmdb_id = best_match.get('id')
+        if not tmdb_id:
+            return None
+
+        # Step 2: Async fetch detailed info
+        details = await self.get_movie_details_async(tmdb_id)
+        if not details:
+            logger.warning(f"Async enrichment failed: could not fetch details for TMDB ID {tmdb_id}")
+            return None
+
+        # Step 3: Extract enrichment data (sync operation)
+        enrichment = self.extract_enrichment_data(details)
+
+        if not enrichment:
+            logger.warning(f"Async enrichment failed: could not extract data for TMDB ID {tmdb_id}")
+            return None
+
+        logger.info(f"Successfully enriched (async): {title} ({year}) → TMDB ID {tmdb_id}")
+        return enrichment
+
+    # ========== END ASYNC METHODS ==========
 
     def clear_cache(self) -> None:
         """Clear all cached results."""

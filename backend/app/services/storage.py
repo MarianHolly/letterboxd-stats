@@ -29,7 +29,7 @@ class StorageService:
                 created_at=now,
                 last_accessed=now,
                 expires_at=now + timedelta(days=30),
-                metadata=metadata or {}
+                upload_metadata=metadata or {}
             )
             self.db.add(new_session)
             self.db.commit()
@@ -216,6 +216,8 @@ class StorageService:
             movie.revenue = tmdb_data.get("revenue")
             movie.popularity = tmdb_data.get("popularity")
             movie.vote_average = tmdb_data.get("vote_average")
+            movie.original_language = tmdb_data.get("original_language")
+            movie.country = tmdb_data.get("country")
             movie.tmdb_enriched = True
             movie.enriched_at = datetime.utcnow()
 
