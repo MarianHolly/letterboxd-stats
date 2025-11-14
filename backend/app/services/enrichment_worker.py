@@ -281,17 +281,26 @@ class EnrichmentWorker:
         try:
             job = self.scheduler.get_job("enrichment_job")
 
+            if not job:
+                return {
+                    'running': self.scheduler.running,
+                    'last_run': None,
+                    'next_run': None,
+                    'interval': 10,
+                    'message': 'Enrichment job not found in scheduler'
+                }
+
             return {
                 'running': self.scheduler.running,
-                'last_run': job.last_execution_time if job else None,
-                'next_run': job.next_run_time if job else None,
+                'last_run': getattr(job, 'last_execution_time', None),
+                'next_run': job.next_run_time if hasattr(job, 'next_run_time') else None,
                 'interval': 10  # seconds
             }
 
         except Exception as e:
             logger.error(f"Error getting worker status: {str(e)}")
             return {
-                'running': False,
+                'running': self.scheduler.running if self.scheduler else False,
                 'last_run': None,
                 'next_run': None,
                 'interval': 10,

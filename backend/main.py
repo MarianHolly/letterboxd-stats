@@ -77,12 +77,14 @@ async def startup_event():
         # Initialize enrichment worker
         # Pass SessionLocal factory instead of a single session instance
         # This allows the worker to create fresh sessions for each polling cycle
+        logger.info("Creating EnrichmentWorker...")
         enrichment_worker = EnrichmentWorker(tmdb_client, SessionLocal)
+        logger.info("Starting enrichment scheduler...")
         enrichment_worker.start_scheduler()
         logger.info("[OK] Enrichment Worker started")
 
     except Exception as e:
-        logger.error(f"[ERROR] Enrichment Worker initialization failed: {str(e)}")
+        logger.error(f"[ERROR] Enrichment Worker initialization failed: {str(e)}", exc_info=True)
 
 @app.on_event("shutdown")
 async def shutdown_event():
