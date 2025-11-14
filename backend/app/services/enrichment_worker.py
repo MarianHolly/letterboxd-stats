@@ -48,16 +48,17 @@ class EnrichmentWorker:
         enrichment_worker.stop_scheduler()
     """
 
-    def __init__(self, tmdb_client: TMDBClient, storage: StorageService):
+    def __init__(self, tmdb_client: TMDBClient, db_session_factory):
         """
         Initialize the enrichment worker.
 
         Args:
             tmdb_client: TMDBClient instance for fetching TMDB data
-            storage: StorageService instance for database operations
+            db_session_factory: SQLAlchemy SessionLocal factory (not a StorageService instance)
+                               This allows creating fresh sessions for each polling cycle
         """
         self.tmdb_client = tmdb_client
-        self.storage = storage
+        self.db_session_factory = db_session_factory
         self.scheduler = BackgroundScheduler()
 
         logger.info("EnrichmentWorker initialized")
@@ -136,9 +137,16 @@ class EnrichmentWorker:
         - Logs errors for debugging
         - Continues processing remaining sessions
         """
+        # Create a fresh database session for this polling cycle
+        # This ensures we see the latest database state from other requests
+        db = self.db_session_factory()
+
         try:
+            from app.services.storage import StorageService
+            storage = StorageService(db)
+
             # Find sessions that need enrichment
-            sessions = self.storage.get_enriching_sessions()
+            sessions = storage.get_enriching_sessions()
 
             if not sessions:
                 # No work to do, that's fine
@@ -150,7 +158,7 @@ class EnrichmentWorker:
             # Process each session
             for session in sessions:
                 try:
-                    self.enrich_session(session.id)
+                    self.enrich_session(session.id, storage)
 
                 except Exception as e:
                     # Log error but continue with next session
@@ -162,8 +170,11 @@ class EnrichmentWorker:
         except Exception as e:
             # Unexpected error in main job
             logger.error(f"Unexpected error in enrich_sessions: {str(e)}", exc_info=True)
+        finally:
+            # Always close the database session
+            db.close()
 
-    def enrich_session(self, session_id: str) -> None:
+    def enrich_session(self, session_id: str, storage: "StorageService") -> None:
         """Enrich all unenriched movies in a session.
 
         For a single session:
@@ -179,6 +190,7 @@ class EnrichmentWorker:
 
         Args:
             session_id: UUID of the session to enrich
+            storage: StorageService instance to use for this session
 
         Error Handling:
         - Movie enrichment failures don't fail the whole session
@@ -187,11 +199,11 @@ class EnrichmentWorker:
         """
         try:
             # Get all movies that need enrichment
-            unenriched_movies = self.storage.get_unenriched_movies(session_id)
+            unenriched_movies = storage.get_unenriched_movies(session_id)
 
             if not unenriched_movies:
                 logger.info(f"Session {session_id}: No unenriched movies, marking complete")
-                self.storage.update_session_status(session_id, "completed")
+                storage.update_session_status(session_id, "completed")
                 return
 
             logger.info(
@@ -209,7 +221,7 @@ class EnrichmentWorker:
 
                     if enrichment_data:
                         # Step 2: Save to database
-                        self.storage.update_movie_enrichment(
+                        storage.update_movie_enrichment(
                             movie_id=movie.id,
                             tmdb_data=enrichment_data
                         )
@@ -237,13 +249,13 @@ class EnrichmentWorker:
                     # Always update progress counter, even on failure
                     # This way we don't get stuck if there's a transient error
                     try:
-                        self.storage.increment_enriched_count(session_id)
+                        storage.increment_enriched_count(session_id)
 
                     except Exception as e:
                         logger.error(f"Error updating progress: {str(e)}")
 
             # Mark session as complete
-            self.storage.update_session_status(session_id, "completed")
+            storage.update_session_status(session_id, "completed")
             logger.info(f"Session {session_id}: Enrichment complete")
 
         except Exception as e:
@@ -343,9 +355,13 @@ class EnrichmentWorker:
 
         Note: This runs synchronously in the calling thread.
         """
+        db = self.db_session_factory()
         try:
+            from app.services.storage import StorageService
+            storage = StorageService(db)
+
             logger.info(f"Manually triggering enrichment for session {session_id}")
-            self.enrich_session(session_id)
+            self.enrich_session(session_id, storage)
             logger.info(f"Manual enrichment complete for session {session_id}")
 
         except Exception as e:
@@ -353,3 +369,5 @@ class EnrichmentWorker:
                 f"Error in manual enrichment: {str(e)}",
                 exc_info=True
             )
+        finally:
+            db.close()

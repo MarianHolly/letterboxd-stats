@@ -75,9 +75,9 @@ async def startup_event():
 
     try:
         # Initialize enrichment worker
-        db = SessionLocal()
-        storage = StorageService(db)
-        enrichment_worker = EnrichmentWorker(tmdb_client, storage)
+        # Pass SessionLocal factory instead of a single session instance
+        # This allows the worker to create fresh sessions for each polling cycle
+        enrichment_worker = EnrichmentWorker(tmdb_client, SessionLocal)
         enrichment_worker.start_scheduler()
         logger.info("[OK] Enrichment Worker started")
 
