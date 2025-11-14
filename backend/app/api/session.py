@@ -23,7 +23,7 @@ def get_session_status(session_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Session not found or expired")
 
         return SessionStatusResponse(
-            session_id=session.id,
+            session_id=str(session.id),
             status=session.status,
             total_movies=session.total_movies,
             enriched_count=session.enriched_count,
@@ -103,7 +103,7 @@ def get_session_details(session_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Session not found or expired")
 
         return SessionDetailsResponse(
-            session_id=session.id,
+            session_id=str(session.id),
             status=session.status,
             total_movies=session.total_movies,
             enriched_count=session.enriched_count,

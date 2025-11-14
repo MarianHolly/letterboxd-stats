@@ -87,7 +87,9 @@ class EnrichmentWorker:
                 id="enrichment_job",
                 name="TMDB Enrichment Job",
                 replace_existing=True,
-                max_instances=1  # Prevent concurrent executions
+                max_instances=1,  # Prevent concurrent executions
+                coalesce=True,  # Skip missed runs if job takes longer than interval
+                misfire_grace_time=60  # Allow up to 60 seconds before considering it a misfire
             )
 
             self.scheduler.start()
@@ -345,7 +347,9 @@ class EnrichmentWorker:
                 id="enrichment_job",
                 name="TMDB Enrichment Job",
                 replace_existing=True,
-                max_instances=1
+                max_instances=1,  # Prevent concurrent executions
+                coalesce=True,  # Skip missed runs if job takes longer than interval
+                misfire_grace_time=60  # Allow up to 60 seconds before considering it a misfire
             )
 
             logger.info("Enrichment resumed")

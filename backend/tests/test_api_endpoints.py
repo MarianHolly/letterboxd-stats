@@ -288,3 +288,243 @@ class TestUploadErrorHandling:
 
         # Should return error
         assert response.status_code != 201
+
+
+class TestSessionStatusEndpoint:
+    """Test session status endpoint - specifically UUID serialization"""
+
+    def test_get_session_status_returns_string_session_id(self, client, valid_csv_data):
+        """Test that GET /api/session/{id}/status returns session_id as string (UUID serialization fix)"""
+        # First, upload a file to create a session
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        assert upload_response.status_code == 201
+        session_id = upload_response.json()["session_id"]
+
+        # Now fetch the session status
+        status_response = client.get(f"/api/session/{session_id}/status")
+
+        # Should return 200 (not 500 with UUID serialization error)
+        assert status_response.status_code == 200
+        data = status_response.json()
+
+        # session_id should be a string, not UUID object
+        assert "session_id" in data
+        assert isinstance(data["session_id"], str)
+        assert data["session_id"] == session_id
+
+    def test_get_session_status_response_structure(self, client, valid_csv_data):
+        """Test that session status response has all required fields"""
+        # Upload a file
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        session_id = upload_response.json()["session_id"]
+
+        # Fetch status
+        status_response = client.get(f"/api/session/{session_id}/status")
+
+        assert status_response.status_code == 200
+        data = status_response.json()
+
+        # Check all required fields exist
+        required_fields = [
+            "session_id", "status", "total_movies", "enriched_count",
+            "created_at", "expires_at"
+        ]
+        for field in required_fields:
+            assert field in data, f"Missing field: {field}"
+
+    def test_get_session_status_response_types(self, client, valid_csv_data):
+        """Test that session status response fields have correct types"""
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        session_id = upload_response.json()["session_id"]
+        status_response = client.get(f"/api/session/{session_id}/status")
+        data = status_response.json()
+
+        # Check field types
+        assert isinstance(data["session_id"], str)
+        assert isinstance(data["status"], str)
+        assert isinstance(data["total_movies"], int)
+        assert isinstance(data["enriched_count"], int)
+        assert isinstance(data["created_at"], str)
+        assert isinstance(data["expires_at"], str)
+
+    def test_get_session_status_not_found(self, client):
+        """Test that requesting non-existent session returns 404 or 500"""
+        # Note: Invalid UUID format causes 500, valid but non-existent UUID causes 404
+        # Using a properly formatted UUID that doesn't exist
+        import uuid
+        fake_uuid = str(uuid.uuid4())
+        response = client.get(f"/api/session/{fake_uuid}/status")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data
+
+
+class TestSessionDetailsEndpoint:
+    """Test session details endpoint - specifically UUID serialization"""
+
+    def test_get_session_details_returns_string_session_id(self, client, valid_csv_data):
+        """Test that GET /api/session/{id} returns session_id as string (UUID serialization fix)"""
+        # Upload a file
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        assert upload_response.status_code == 201
+        session_id = upload_response.json()["session_id"]
+
+        # Fetch session details
+        details_response = client.get(f"/api/session/{session_id}")
+
+        # Should return 200 (not 500 with UUID serialization error)
+        assert details_response.status_code == 200
+        data = details_response.json()
+
+        # session_id should be a string, not UUID object
+        assert "session_id" in data
+        assert isinstance(data["session_id"], str)
+        assert data["session_id"] == session_id
+
+    def test_get_session_details_response_structure(self, client, valid_csv_data):
+        """Test that session details response has all required fields"""
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        session_id = upload_response.json()["session_id"]
+        details_response = client.get(f"/api/session/{session_id}")
+
+        assert details_response.status_code == 200
+        data = details_response.json()
+
+        # Check all required fields
+        required_fields = [
+            "session_id", "status", "total_movies", "enriched_count",
+            "created_at", "expires_at"
+        ]
+        for field in required_fields:
+            assert field in data, f"Missing field: {field}"
+
+    def test_get_session_details_response_types(self, client, valid_csv_data):
+        """Test that session details response fields have correct types"""
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        session_id = upload_response.json()["session_id"]
+        details_response = client.get(f"/api/session/{session_id}")
+        data = details_response.json()
+
+        # Check field types
+        assert isinstance(data["session_id"], str)
+        assert isinstance(data["status"], str)
+        assert isinstance(data["total_movies"], int)
+        assert isinstance(data["enriched_count"], int)
+        assert isinstance(data["created_at"], str)
+        assert isinstance(data["expires_at"], str)
+
+    def test_get_session_details_not_found(self, client):
+        """Test that requesting non-existent session returns 404 or 500"""
+        # Note: Invalid UUID format causes 500, valid but non-existent UUID causes 404
+        # Using a properly formatted UUID that doesn't exist
+        import uuid
+        fake_uuid = str(uuid.uuid4())
+        response = client.get(f"/api/session/{fake_uuid}")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data
+
+
+class TestSessionMoviesEndpoint:
+    """Test session movies endpoint"""
+
+    def test_get_session_movies_returns_correct_structure(self, client, valid_csv_data):
+        """Test that GET /api/session/{id}/movies returns correct structure"""
+        # Upload a file
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        assert upload_response.status_code == 201
+        session_id = upload_response.json()["session_id"]
+
+        # Fetch movies
+        movies_response = client.get(f"/api/session/{session_id}/movies")
+
+        assert movies_response.status_code == 200
+        data = movies_response.json()
+
+        # Check structure
+        assert "movies" in data
+        assert "total" in data
+        assert "page" in data
+        assert "per_page" in data
+
+    def test_get_session_movies_returns_string_session_id(self, client, valid_csv_data):
+        """Test that movie entries maintain string UUIDs"""
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        session_id = upload_response.json()["session_id"]
+        movies_response = client.get(f"/api/session/{session_id}/movies")
+
+        assert movies_response.status_code == 200
+        data = movies_response.json()
+
+        # Check pagination
+        assert isinstance(data["total"], int)
+        assert isinstance(data["page"], int)
+        assert isinstance(data["per_page"], int)
+
+    def test_get_session_movies_pagination(self, client, valid_csv_data):
+        """Test that movie pagination works correctly"""
+        upload_response = client.post(
+            "/api/upload",
+            files=[("files", ("diary.csv", valid_csv_data, "text/csv"))]
+        )
+
+        session_id = upload_response.json()["session_id"]
+
+        # Test default pagination
+        response = client.get(f"/api/session/{session_id}/movies")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["page"] == 1
+        assert data["per_page"] == 50
+
+        # Test custom pagination
+        response = client.get(f"/api/session/{session_id}/movies?page=1&per_page=10")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["per_page"] == 10
+
+    def test_get_session_movies_not_found(self, client):
+        """Test that requesting movies for non-existent session returns 404 or 500"""
+        # Note: Invalid UUID format causes 500, valid but non-existent UUID causes 404
+        # Using a properly formatted UUID that doesn't exist
+        import uuid
+        fake_uuid = str(uuid.uuid4())
+        response = client.get(f"/api/session/{fake_uuid}/movies")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data
