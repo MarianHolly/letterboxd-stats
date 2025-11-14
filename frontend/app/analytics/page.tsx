@@ -38,7 +38,6 @@ export default function AnalyticsPage() {
   const { enrichedData } = useEnrichedDataFromSession(sessionId);
   const analytics = useAnalytics(enrichedData);
 
-  const clearFiles = useUploadStore((state) => state.clearFiles);
 
   const handleUploadComplete = async (uploadedFiles: UploadedFile[]) => {
     try {
@@ -83,12 +82,12 @@ export default function AnalyticsPage() {
 
       console.log("[Analytics Upload] Session ID received:", sessionId);
 
-      // Store the real session ID from backend
-      useUploadStore.setState({ sessionId });
-
-      // Clear old data - don't re-add files to store
+      // Clear old files (but NOT sessionId!)
       // Files are now only in backend database, we'll fetch enriched data via API
-      clearFiles();
+      useUploadStore.setState({
+        files: [],
+        sessionId: sessionId  // Keep the new session ID!
+      });
 
       console.log("[Analytics Upload] Upload complete, closing modal");
       setIsUploadModalOpen(false);
