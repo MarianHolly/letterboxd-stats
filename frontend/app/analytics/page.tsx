@@ -5,7 +5,7 @@ import { useState } from "react";
 // Hooks
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useUploadStore } from "@/hooks/use-upload-store";
-import { useEnrichedDataFromStore } from "@/src/hooks/use-enriched-data";
+import { useEnrichedDataFromSession } from "@/src/hooks/use-enriched-data-from-session";
 
 // Components
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -32,13 +32,12 @@ interface UploadedFile {
 
 export default function AnalyticsPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [enrichmentKey, setEnrichmentKey] = useState(0); // Force refresh when enrichment completes
+  const [refreshKey, setRefreshKey] = useState(0); // Force refresh when enrichment completes
 
-  const { enrichedData } = useEnrichedDataFromStore();
-  const analytics = useAnalytics(enrichedData);
   const sessionId = useUploadStore((state) => state.sessionId);
+  const { enrichedData } = useEnrichedDataFromSession(sessionId);
+  const analytics = useAnalytics(enrichedData);
 
-  const addFile = useUploadStore((state) => state.addFile);
   const clearFiles = useUploadStore((state) => state.clearFiles);
 
   const handleUploadComplete = async (uploadedFiles: UploadedFile[]) => {
@@ -77,21 +76,9 @@ export default function AnalyticsPage() {
       // Store the real session ID from backend
       useUploadStore.setState({ sessionId });
 
-      // Clear old data first
+      // Clear old data - don't re-add files to store
+      // Files are now only in backend database, we'll fetch enriched data via API
       clearFiles();
-
-      // Also store files locally for offline access
-      for (const file of validFiles) {
-        const csvContent = await file.file.text();
-        addFile({
-          id: `${Date.now()}_${Math.random()}`,
-          name: file.file.name,
-          size: file.file.size,
-          type: file.type,
-          data: csvContent,
-          uploadedAt: Date.now(),
-        });
-      }
 
       setIsUploadModalOpen(false);
     } catch (error) {
@@ -117,9 +104,9 @@ export default function AnalyticsPage() {
           {sessionId && !hasData && (
             <div className="px-8 pt-4 pb-2">
               <EnrichmentProgress
-                key={enrichmentKey}
+                key={refreshKey}
                 sessionId={sessionId}
-                onComplete={() => setEnrichmentKey(prev => prev + 1)}
+                onComplete={() => setRefreshKey(prev => prev + 1)}
               />
             </div>
           )}
