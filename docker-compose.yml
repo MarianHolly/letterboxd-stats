@@ -23,9 +23,10 @@ services:
       dockerfile: Dockerfile
     container_name: letterboxd_stats_backend
     environment:
-      DATABASE_URL: postgresql://letterboxduser:securepassword@db:5432/letterboxddb
-      SECRET_KEY: super-secretkey-in-production
+      DATABASE_URL: postgresql+psycopg://letterboxduser:securepassword@db:5432/letterboxddb
       TMDB_API_KEY: ${TMDB_API_KEY}
+      LOG_LEVEL: INFO
+      SQL_ECHO: False
     ports:
       - "8000:8000"
     volumes:
