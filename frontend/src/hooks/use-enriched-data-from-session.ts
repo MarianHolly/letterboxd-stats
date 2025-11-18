@@ -43,6 +43,9 @@ export function useEnrichedDataFromSession(sessionId: string | null) {
       return;
     }
 
+    let isSubscribed = true;
+    let pollInterval: NodeJS.Timeout | null = null;
+
     const fetchEnrichedData = async () => {
       try {
         setIsLoading(true);
@@ -104,17 +107,40 @@ export function useEnrichedDataFromSession(sessionId: string | null) {
           likes: [],
         };
 
-        setEnrichedData(result);
+        if (isSubscribed) {
+          setEnrichedData(result);
+
+          // Stop polling once we have data
+          if (movies.size > 0 && pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+        }
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to fetch enriched data';
-        setError(errorMsg);
+        if (isSubscribed) {
+          const errorMsg = err instanceof Error ? err.message : 'Failed to fetch enriched data';
+          setError(errorMsg);
+        }
       } finally {
-        setIsLoading(false);
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
       }
     };
 
     // Fetch data immediately
     fetchEnrichedData();
+
+    // Poll every 2 seconds until we have data
+    pollInterval = setInterval(fetchEnrichedData, 2000);
+
+    // Cleanup on unmount or when sessionId changes
+    return () => {
+      isSubscribed = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, [sessionId]);
 
   return { enrichedData, isLoading, error };
