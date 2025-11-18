@@ -36,8 +36,9 @@ export function EnrichmentProgress({
       try {
         setIsLoading(true);
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        // Use /api/session/{sessionId} endpoint (not /status)
         const response = await fetch(
-          `${apiUrl}/api/session/${sessionId}/status`,
+          `${apiUrl}/api/session/${sessionId}`,
           { signal: AbortSignal.timeout(5000) }
         );
 

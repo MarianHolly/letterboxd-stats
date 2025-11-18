@@ -51,9 +51,9 @@ export function useEnrichedDataFromSession(sessionId: string | null) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
         // Fetch all movies from the session
-        // Start with page 1, per_page=500 to get most movies in one request
+        // Use skip=0&limit=1000 to get most movies in one request
         const response = await fetch(
-          `${apiUrl}/api/session/${sessionId}/movies?page=1&per_page=500`,
+          `${apiUrl}/api/session/${sessionId}/movies?skip=0&limit=1000`,
           { signal: AbortSignal.timeout(10000) }
         );
 
@@ -66,12 +66,15 @@ export function useEnrichedDataFromSession(sessionId: string | null) {
           throw new Error(`HTTP ${response.status}: Failed to fetch enriched data`);
         }
 
-        const data: MoviesListResponse = await response.json();
+        const data = await response.json();
 
         // Convert backend movies to EnrichedData format
         const movies = new Map<string, NormalizedMovie>();
 
-        for (const movie of data.movies) {
+        // API returns array directly, not {movies: [...]}
+        const moviesList = Array.isArray(data) ? data : (data.movies || []);
+
+        for (const movie of moviesList) {
           const normalized: NormalizedMovie = {
             uri: movie.letterboxd_uri,
             title: movie.title,
