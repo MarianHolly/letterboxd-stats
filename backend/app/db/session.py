@@ -1,132 +1,160 @@
 """
-Database Connection Management
+Async Database Connection Management
 
 This module handles:
-- Connection pooling to PostgreSQL
-- Thread-safe database sessions
+- Async connection pooling to PostgreSQL
+- Async database sessions (no threads needed)
 - Dependency injection for FastAPI endpoints
 
 Key Concepts:
-- Engine: Connection pool (reuses connections across requests)
-- SessionLocal: Factory for creating new database sessions
-- get_db: FastAPI dependency that provides sessions to endpoints
+- AsyncEngine: Async connection pool (true async I/O)
+- AsyncSessionLocal: Async factory for creating database sessions
+- get_db: FastAPI dependency that provides async sessions to endpoints
+
+Why async?
+- No thread pool needed (eliminates connection exhaustion at ~15 connections)
+- True non-blocking I/O for database operations
+- Scales to 100+ concurrent operations
 """
 
+import logging
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    AsyncSession,
+    AsyncEngine
+)
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 # ============================================================
 # DATABASE CONNECTION CONFIGURATION
 # ============================================================
 
 # Get database URL from environment variable
-# Format: postgresql://user:password@host:port/database
+# Format: postgresql+psycopg://user:password@host:port/database
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://letterboxduser:securepassword@localhost:5432/letterboxddb"
+    "postgresql+psycopg://letterboxduser:securepassword@db:5432/letterboxddb"
 )
 
-print(f"Connecting to database: {DATABASE_URL.split('@')[1]}")  # Log connection (hide password)
+# Determine if using SQLite for testing
+is_sqlite = "sqlite" in DATABASE_URL
+
+logger.info(f"Database: {'SQLite' if is_sqlite else 'PostgreSQL'}")
 
 # ============================================================
-# CREATE ENGINE WITH CONNECTION POOLING
+# CREATE ASYNC ENGINE WITH CONNECTION POOLING
 # ============================================================
 
-engine = create_engine(
-    DATABASE_URL,
-    # Connection pooling settings:
-    # - pool_size: Number of connections to keep in the pool (default: 5)
-    # - max_overflow: How many connections can overflow beyond pool_size (default: 10)
-    # - pool_pre_ping: Test connection before reusing (handles stale connections)
-    # - echo: Log all SQL statements (set to True for debugging)
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,
-    echo=False,  # Set to True to see all SQL statements during development
+def create_engine_instance() -> AsyncEngine:
+    """Create async engine with appropriate settings."""
+
+    engine_kwargs = {
+        "echo": os.getenv("SQL_ECHO", "False").lower() == "true",
+        "pool_pre_ping": True,  # Validate connections before using
+        "future": True,  # SQLAlchemy 2.0 style
+    }
+
+    # SQLite-specific settings
+    if is_sqlite:
+        engine_kwargs.update({
+            "connect_args": {"check_same_thread": False},
+            "poolclass": NullPool,  # SQLite doesn't handle connection pooling well
+        })
+    else:
+        # PostgreSQL-specific settings
+        engine_kwargs.update({
+            "pool_size": 20,           # Base pool size
+            "max_overflow": 30,        # Max overflow beyond pool_size
+            "pool_recycle": 3600,      # Recycle connections every hour
+            "echo_pool": False,        # Set True to debug connection pool
+        })
+
+    logger.info(f"Creating async engine for: {DATABASE_URL}")
+    return create_async_engine(DATABASE_URL, **engine_kwargs)
+
+
+# Create engine instance
+engine = create_engine_instance()
+
+# ============================================================
+# CREATE ASYNC SESSION FACTORY
+# ============================================================
+
+AsyncSessionLocal = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,  # Don't expire objects after commit
+    autoflush=False,         # Explicit flushing only
 )
 
-# ============================================================
-# CREATE SESSION FACTORY
-# ============================================================
-
-SessionLocal = sessionmaker(
-    autocommit=False,  # Don't auto-commit, require explicit commit
-    autoflush=False,   # Don't auto-flush changes, require explicit flush
-    bind=engine
-)
 
 # ============================================================
 # DEPENDENCY INJECTION FOR FASTAPI
 # ============================================================
 
-def get_db() -> Session:
+async def get_db() -> AsyncSession:
     """
-    FastAPI dependency that provides a database session
+    FastAPI dependency that provides an async database session
 
     Usage in endpoints:
         @app.get("/items")
-        def get_items(db: Session = Depends(get_db)):
-            return db.query(Item).all()
+        async def get_items(db: AsyncSession = Depends(get_db)):
+            result = await db.execute(select(Item))
+            return result.scalars().all()
 
     Key behavior:
-    - Opens a new session for each request
+    - Opens a new async session for each request
     - Closes automatically when request completes
     - Rolls back on errors (transaction safety)
-
-    Why try/finally?
-    - Ensures session is always closed, even if endpoint crashes
-    - Prevents connection leaks
+    - No threads needed (pure async I/O)
     """
-    db = SessionLocal()
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+# ============================================================
+# DATABASE INITIALIZATION
+# ============================================================
+
+async def init_db():
+    """
+    Initialize database by creating tables
+
+    Call this once on startup to create schema.
+    """
     try:
-        yield db  # Provide session to endpoint
-    finally:
-        db.close()  # Always close, even if error occurred
-
-
-def init_db():
-    """
-    Initialize database by running Alembic migrations
-
-    Call this once on startup to create/update schema.
-    Alembic ensures proper version control of database changes.
-    """
-    try:
-        from alembic.config import Config
-        from alembic import command
-        import os
-
-        # Get the backend directory path
-        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        alembic_cfg_path = os.path.join(backend_dir, '..', 'alembic.ini')
-
-        # Initialize Alembic config
-        alembic_cfg = Config(alembic_cfg_path)
-
-        # Run migrations to the latest version
-        command.upgrade(alembic_cfg, "head")
-        print("[OK] Database migrations applied successfully")
-    except Exception as e:
-        print(f"[WARNING] Could not run Alembic migrations: {str(e)}")
-        print("[FALLBACK] Attempting to create tables using SQLAlchemy models...")
-
-        # Fallback to create_all if Alembic fails
         from app.models.database import Base
-        Base.metadata.create_all(bind=engine)
-        print("[OK] Database tables created (fallback method)")
+
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        logger.info("Database tables initialized")
+
+    except Exception as e:
+        logger.error(f"Error initializing database: {e}", exc_info=True)
+        raise
 
 
-def close_db():
+# ============================================================
+# DATABASE SHUTDOWN
+# ============================================================
+
+async def close_db():
     """
     Close all connections in the pool
 
     Call this on application shutdown to gracefully close connections.
     """
-    engine.dispose()
-    print("[OK] Database connections closed")
+    await engine.dispose()
+    logger.info("Database connections closed")
