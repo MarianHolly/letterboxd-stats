@@ -1,19 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import os
 import logging
 from dotenv import load_dotenv
 
 # Database imports
-from app.db.session import init_db, close_db, SessionLocal
+from app.db.session import init_db, close_db
 
 # Services imports
 from app.services.tmdb_client import TMDBClient
-from app.services.storage import StorageService
 from app.services.enrichment_worker import EnrichmentWorker
 
 # API routes
-from app.api import upload, session, test
+from app.api import upload, session
 
 # Load environment variables
 load_dotenv()
@@ -21,21 +21,6 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-app = FastAPI(title="Letterboxd Stats API", version="1.0.0")
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",  # Test page runs on 3001
-        "http://localhost:8000",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Check environment
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
@@ -46,65 +31,99 @@ if not TMDB_API_KEY:
 tmdb_client = None
 enrichment_worker = None
 
-# Database startup/shutdown
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database, TMDB client, and enrichment worker on startup."""
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Startup and shutdown lifecycle for FastAPI app.
+
+    Replaces:
+    @app.on_event("startup")
+    @app.on_event("shutdown")
+    """
     global tmdb_client, enrichment_worker
+
+    # Startup
+    logger.info("Starting Letterboxd Stats API")
 
     try:
         # Initialize database
-        init_db()
-        logger.info("[OK] Database initialized")
+        await init_db()
+        logger.info("Database initialized")
     except Exception as e:
-        logger.error(f"[ERROR] Database initialization failed: {str(e)}")
-        return
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
+        raise
 
     try:
         # Initialize TMDB client
-        if TMDB_API_KEY:
-            tmdb_client = TMDBClient(TMDB_API_KEY)
-            logger.info("[OK] TMDB Client initialized")
-        else:
-            logger.error("[ERROR] TMDB_API_KEY not set - enrichment will not work")
-            return
-
+        tmdb_client = TMDBClient()
+        await tmdb_client.start()
+        logger.info("TMDB client started")
     except Exception as e:
-        logger.error(f"[ERROR] TMDB Client initialization failed: {str(e)}")
-        return
+        logger.error(f"TMDB client initialization failed: {e}", exc_info=True)
+        raise
 
     try:
-        # Initialize enrichment worker
-        # Pass SessionLocal factory instead of a single session instance
-        # This allows the worker to create fresh sessions for each polling cycle
-        logger.info("Creating EnrichmentWorker...")
-        enrichment_worker = EnrichmentWorker(tmdb_client, SessionLocal)
-        logger.info("Starting enrichment scheduler...")
-        enrichment_worker.start_scheduler()
-        logger.info("[OK] Enrichment Worker started")
-
+        # Start enrichment worker
+        enrichment_worker = EnrichmentWorker(tmdb_client)
+        await enrichment_worker.start()
+        logger.info("Enrichment worker started")
     except Exception as e:
-        logger.error(f"[ERROR] Enrichment Worker initialization failed: {str(e)}", exc_info=True)
+        logger.error(f"Enrichment worker initialization failed: {e}", exc_info=True)
+        raise
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Stop enrichment worker and close database on shutdown."""
-    global enrichment_worker
+    logger.info("All services initialized")
+
+    yield  # Application runs here
+
+    # Shutdown
+    logger.info("Shutting down")
 
     try:
         # Stop enrichment worker
         if enrichment_worker:
-            enrichment_worker.stop_scheduler()
-            logger.info("[OK] Enrichment Worker stopped")
+            await enrichment_worker.stop()
+            logger.info("Enrichment worker stopped")
     except Exception as e:
-        logger.error(f"[ERROR] Enrichment Worker shutdown failed: {str(e)}")
+        logger.error(f"Enrichment worker shutdown failed: {e}", exc_info=True)
 
     try:
-        # Close database connections
-        close_db()
-        logger.info("[OK] Database connections closed")
+        # Close TMDB client
+        if tmdb_client:
+            await tmdb_client.stop()
+            logger.info("TMDB client closed")
     except Exception as e:
-        logger.error(f"[ERROR] Database shutdown failed: {str(e)}")
+        logger.error(f"TMDB client shutdown failed: {e}", exc_info=True)
+
+    try:
+        # Close database
+        await close_db()
+        logger.info("Database closed")
+    except Exception as e:
+        logger.error(f"Database shutdown failed: {e}", exc_info=True)
+
+    logger.info("Shutdown complete")
+
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title="Letterboxd Stats API",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Root endpoint
 @app.get("/")
@@ -112,41 +131,19 @@ async def root():
     """Root endpoint - API is running."""
     return {"message": "Letterboxd Stats API", "status": "running"}
 
-# Include routers
-app.include_router(upload.router, prefix="/api", tags=["upload"])
-app.include_router(session.router, prefix="/api", tags=["session"])
-app.include_router(test.router, prefix="/api", tags=["test"])
-
 # Health check
 @app.get("/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "healthy"}
-
-# Worker status endpoint
-@app.get("/worker/status")
-async def worker_status():
-    """Get enrichment worker status.
-
-    Returns information about the background enrichment worker:
-    - Whether it's running
-    - Last execution time
-    - Next scheduled execution
-    """
     global enrichment_worker
-
-    if not enrichment_worker:
-        return {
-            "worker_status": "not_initialized",
-            "running": False,
-            "message": "Enrichment worker not initialized"
-        }
-
-    status = enrichment_worker.get_status()
     return {
-        "worker_status": "running" if status["running"] else "stopped",
-        **status
+        "status": "healthy",
+        "enrichment_running": enrichment_worker._running if enrichment_worker else False
     }
+
+# Include routers
+app.include_router(upload.router, prefix="/api", tags=["upload"])
+app.include_router(session.router, prefix="/api", tags=["session"])
 
 if __name__ == "__main__":
     import uvicorn

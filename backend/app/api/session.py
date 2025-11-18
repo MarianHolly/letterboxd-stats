@@ -1,122 +1,96 @@
+"""
+Session endpoints for progress and data retrieval.
+
+GET /api/session/{session_id} - Get session status and progress
+GET /api/session/{session_id}/movies - Get enriched movies
+"""
+
+import logging
+import uuid
 from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.services.storage import StorageService
-from app.schemas.session import (
-    SessionStatusResponse,
-    SessionDetailsResponse,
-    MoviesListResponse,
-    MovieResponse
-)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.get("/session/{session_id}/status", response_model=SessionStatusResponse)
-def get_session_status(session_id: str, db: Session = Depends(get_db)):
-    """Check session processing status."""
+
+@router.get("/session/{session_id}")
+async def get_session_status(session_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Get session status and enrichment progress.
+
+    Used by frontend for progress bar polling.
+    """
     try:
+        session_uuid = uuid.UUID(session_id)
+
         storage = StorageService(db)
-        session = storage.get_session(session_id)
+        session = await storage.get_session(session_uuid)
 
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found or expired")
+            raise HTTPException(status_code=404, detail="Session not found")
 
-        return SessionStatusResponse(
-            session_id=str(session.id),
-            status=session.status,
-            total_movies=session.total_movies,
-            enriched_count=session.enriched_count,
-            created_at=session.created_at,
-            expires_at=session.expires_at,
-            error_message=None
-        )
+        return {
+            "status": session.status,
+            "enriched_count": session.enriched_count,
+            "total_movies": session.total_movies,
+            "progress_percent": (session.enriched_count / session.total_movies * 100)
+            if session.total_movies > 0 else 0
+        }
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID")
     except HTTPException:
         raise
     except Exception as e:
-        import logging
-        logging.error(f"Error fetching session status for {session_id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching session status: {str(e)}"
-        )
+        logger.error(f"Error getting session: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/session/{session_id}/movies", response_model=MoviesListResponse)
-def get_session_movies(
+
+@router.get("/session/{session_id}/movies")
+async def get_session_movies(
     session_id: str,
-    page: int = Query(1, ge=1),
-    per_page: int = Query(50, ge=1, le=500),
-    db: Session = Depends(get_db)
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Retrieve movies for a session."""
+    """
+    Get enriched movies for session.
+
+    Returns paginated list of movies with TMDB data.
+    """
     try:
+        session_uuid = uuid.UUID(session_id)
+
         storage = StorageService(db)
+        session = await storage.get_session(session_uuid)
 
-        if not storage.session_exists(session_id):
-            raise HTTPException(status_code=404, detail="Session not found or expired")
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
 
-        offset = (page - 1) * per_page
-        movies, total = storage.get_movies(session_id, limit=per_page, offset=offset)
+        movies = await storage.get_session_movies(session_uuid, skip, limit)
 
-        movie_responses = [
-            MovieResponse(
-                title=m.title,
-                year=m.year,
-                rating=m.rating,
-                watched_date=m.watched_date,
-                rewatch=m.rewatch,
-                tags=m.tags or [],
-                review=m.review,
-                letterboxd_uri=m.letterboxd_uri,
-                genres=m.genres,
-                directors=m.directors,
-                cast=m.cast,
-                runtime=m.runtime
-            )
+        return [
+            {
+                "title": m.title,
+                "year": m.year,
+                "rating": m.rating,
+                "genres": m.genres,
+                "runtime": m.runtime,
+                "tmdb_enriched": m.tmdb_enriched,
+                "tmdb_id": m.tmdb_id
+            }
             for m in movies
         ]
 
-        return MoviesListResponse(
-            movies=movie_responses,
-            total=total,
-            page=page,
-            per_page=per_page
-        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID")
     except HTTPException:
         raise
     except Exception as e:
-        import logging
-        logging.error(f"Error fetching movies for session {session_id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching movies: {str(e)}"
-        )
-
-@router.get("/session/{session_id}", response_model=SessionDetailsResponse)
-def get_session_details(session_id: str, db: Session = Depends(get_db)):
-    """Get full session details."""
-    try:
-        storage = StorageService(db)
-        session = storage.get_session(session_id)
-
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found or expired")
-
-        return SessionDetailsResponse(
-            session_id=str(session.id),
-            status=session.status,
-            total_movies=session.total_movies,
-            enriched_count=session.enriched_count,
-            created_at=session.created_at,
-            expires_at=session.expires_at,
-            metadata=session.upload_metadata
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        import logging
-        logging.error(f"Error fetching session details for {session_id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching session details: {str(e)}"
-        )
+        logger.error(f"Error getting movies: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
