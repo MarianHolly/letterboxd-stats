@@ -1,52 +1,39 @@
-"""Enrichment Worker - Background task for TMDB enrichment.
+"""
+Background enrichment worker using async event loop (no APScheduler).
 
-This module provides a background worker that enriches movies with TMDB data.
-It runs on a scheduled interval and processes all sessions with status='enriching'.
-
-Architecture:
-- Uses APScheduler for background task scheduling
-- Polls for sessions that need enrichment
-- For each session, enriches all unenriched movies
-- Updates progress and marks sessions as complete
-- Handles errors gracefully (logs and continues)
-
-Rate Limiting:
-- TMDB API: 40 requests per 10 seconds (handled by TMDBClient)
-- Enrichment: ~100-150 movies per minute (depends on TMDB availability)
+Key changes:
+- No APScheduler (use native async instead)
+- Single async task (run_loop)
+- Explicit batch processing with rate limiting
+- Atomic progress updates (no race conditions)
+- Full session lifecycle management
 """
 
-import logging
-from typing import Optional
-from datetime import datetime
 import asyncio
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+import logging
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional, List
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
+from app.models.database import Session as SessionModel, Movie
 from app.services.tmdb_client import TMDBClient
-from app.services.storage import StorageService
+from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
 
+def get_trace_id(session_id: uuid.UUID) -> str:
+    """Create short trace ID for logging."""
+    return str(session_id)[:8]
+
+
 class EnrichmentWorker:
-    """Background worker for TMDB enrichment.
+    """
+    Background enrichment worker that runs continuously.
 
-    Responsibilities:
-    - Run on a scheduled interval (default: every 10 seconds)
-    - Find sessions with status='enriching'
-    - For each session, enrich all unenriched movies
-    - Update progress counter as movies are enriched
-    - Mark sessions as 'completed' when finished
-    - Handle errors and log issues
-
-    Usage:
-        # In main.py startup
-        tmdb_client = TMDBClient(api_key)
-        enrichment_worker = EnrichmentWorker(tmdb_client, storage_service)
-        enrichment_worker.start_scheduler()
-
-        # In main.py shutdown
-        enrichment_worker.stop_scheduler()
+    Replaces APScheduler with a simple async loop.
     """
 
     def __init__(self, tmdb_client: TMDBClient, db_session_factory):
